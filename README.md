@@ -1,5 +1,5 @@
 # Heteroresistance
-A MATLAB repository to study bacterial heteroresistance using the model proposed in: <i> N. Martínez-López, C. Vilas and M. R. García (2024) A birth-death model of antimicrobial heteresistance in bacteria and identifiability analysis from time-kill curves.<i> Bacterial heteroresistance is modelled as a multivariate Birth-Death (BD) process following the evolution of the different subpopulations.
+A MATLAB repository to study bacterial heteroresistance using the model proposed in: <i N. Martínez-López, C. Vilas and M. R. García (2024) A birth-death model of antimicrobial heteresistance in bacteria and identifiability analysis from time-kill curves.> Bacterial heteroresistance is modelled as a multivariate Birth-Death (BD) process following the evolution of the different subpopulations.
 
 The repository consist of the following folders and functions:
 - <i>SSA<i>: This folder contains the necessary functions to generate exact trajectories of the multivariate BD model proposed in the main paper using the <i>Stochastic Simulation Algorithm (SSA)<i>. Note that the provided code implement the SSA direct method, which is the less computationally efficient, as the objetive is not to develop fast simulations. The following files are included in this folder:
