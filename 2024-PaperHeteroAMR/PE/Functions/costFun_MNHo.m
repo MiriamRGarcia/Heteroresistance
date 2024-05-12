@@ -1,8 +1,25 @@
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-% Cost function for MLE in MNHo case
+% costFun_MNHo: Cost function for MLE in MNHo case
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-function J = costFun_MNHo(decVars, r, R, tmod, texp_ind, Cexp, NT_data, pars_nom, Var_data, Weights, ODEoptions)
-
+function J = costFun_MNHo(decVars, r, R, tmod, texp_ind, Cexp, N_Tave_data, pars_nom, Var_data, Weights, ODEoptions)
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% INPUT:
+% decVars    = Decision variables (parameters to calibrate);
+% r          = Discretisation of the AMR level (values between entire 
+%            sensitivity S = 0 and entire resistance R = 1) (nr x 1),
+% tmod       = Simulation times for solve ODEs (nt x 1);
+% texp_ind   = Indexes of sampling times (ntexp x 1);
+% Cexp       = Antimicrobial concentrations (assumed constant 
+%            at each experiment),
+% N_Tdata    = Total count data at sampling times for MLE,
+% pars_nom   = Nomimal values of parameters;
+% Var_data   = Variance in total count data at sampling times (for PN case);
+% Weights    = Weights to remove NaN data (for PN case);
+% ODEoptions = Options for ODE solver;
+%
+% OUTPUT:
+% J = Value of the cost function;
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % ----------------------------------------------------------------------- %
 % Obtain parameter values:
 if size(pars_nom) == size(decVars)
@@ -11,8 +28,8 @@ else
     decVars = pars_nom.'.*decVars;
 end
 
-bS        = decVars(1);
-bR        = decVars(2);
+b_S       = decVars(1);
+b_R       = decVars(2);
 alpha_b   = decVars(3);
 d_maxS    = decVars(4);
 alpha_d   = decVars(5);
@@ -28,13 +45,13 @@ lambda_T0 = decVars(12);
 % Previous calculations:
 f0  = exp(-lambda_T0*r);
 f0  = f0/sum(f0);
-N0  = N_T0*f0;                                                             
+N_0 = N_T0*f0;                                                             
 
 Xi  = xi_SR*exp(k_xi*(1 - R));
 Xi  = Xi - diag(diag(Xi));
 
 AA_aux = Xi' - diag(sum(Xi, 2));
-b      = bS*bR./(bR + r.^alpha_b*(bS - bR));
+b      = b_S*b_R./(b_R + r.^alpha_b*(b_S - b_R));
 d_max  = d_maxS*beta_d^alpha_d*(1 - r.^alpha_d)./(beta_d^alpha_d + r.^alpha_d);
 
 % ----------------------------------------------------------------------- %
@@ -42,7 +59,7 @@ d_max  = d_maxS*beta_d^alpha_d*(1 - r.^alpha_d)./(beta_d^alpha_d + r.^alpha_d);
 Nexp   = numel(Cexp);
 ntexp  = numel(texp_ind);
 
-NT_mod = zeros(ntexp, Nexp);
+N_Tmod = zeros(ntexp, Nexp);
 
 for iexp = 1:Nexp
     
@@ -51,16 +68,16 @@ for iexp = 1:Nexp
 
     AA = AA_aux + diag(b - d);
     
-    [~, xout] = ode15s(@(s,y) Odes_cte(s, y, AA), tmod, N0, ODEoptions);
+    [~, xout] = ode15s(@(s,y) Odes_cte(s, y, AA), tmod, N_0, ODEoptions);
     
-    NT                    = sum(xout, 2);
-    NT_mod(1:ntexp, iexp) = log10(NT(texp_ind));
+    N_T                   = sum(xout, 2);
+    N_Tmod(1:ntexp, iexp) = log10(N_T(texp_ind));
 
 end
 
 
 % ----------------------------------------------------------------------- %
 % Value of cost function (unweighted least squares):
-J = norm(NT_mod - NT_data, 'fro');
+J = norm(N_Tmod - N_Tave_data, 'fro');
 
 end
