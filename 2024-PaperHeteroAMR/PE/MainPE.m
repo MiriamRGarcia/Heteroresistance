@@ -124,7 +124,7 @@ Nexp  = numel(Cexp);
 
 if load_res == 1
     
-    load(results_name, 'N_Tdata', 'N_Tave_data', 'pars_opt', 'Weights');
+    load(results_name, 'N_Tdata', 'N_Tave_data', 'pars_opt', 'Weights', 'Var_data');
     
 else
     
@@ -185,11 +185,13 @@ else
     
     N_Tave_data = sum(N_Tdata, 3)/Ntraj;
     
-    % Define weights to remove NaN data (PN case):
+    % Define weights to remove NaN data (for PN case):
     Weights = ones(ntexp, Nexp);
     NaN_ind = find(isnan(N_Tave_data));
     Weights(NaN_ind) = 0;
     
+    % Sample variance of replicates (for PN case)
+    Var_data = sum((N_Tdata - repmat(N_Tave_data, 1, 1, Ntraj)).^2, 3)/(Ntraj - 1);
 end
 
 % ----------------------------------------------------------------------- %
@@ -267,7 +269,7 @@ opts.local.finish = 'fminsearch'; %'wdn2fb'; %'fsqp';
 % opts.local.n2 = 50;
 
 Results = ess_kernel(problem, opts, r, R, tmod, texp_ind, Cexp,...        % Call the optimization function (ESS):
-                     N_Tdata, pars_nom, Weights, ODEoptions);
+                     N_Tave_data, pars_nom, Var_data, Weights, ODEoptions);
 
 pars_opt = Results.xbest.*pars_nom;
 f_best   = Results.fbest;
