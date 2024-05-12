@@ -282,6 +282,9 @@ if strcmp(noise, 'MNHo')
     save(results_name, 'r', 'tmod', 'texp', 'pars', 'pars_opt', 'f_best',...
          'N_Tdata','N_Tave_data','seed', 'Weights', 'Var_data', 'sd')
 elseif strcmp(noise, 'MNHe')
+    var_b = pars_opt(end);
+    % Falta calcular N_T
+    var_a = sum((N_Tave_data - N_T).^2./(N_T.^var_b))/(ntexp*Nexp);
     save(results_name, 'r', 'tmod', 'texp', 'pars', 'pars_opt', 'f_best',...
          'N_Tdata','N_Tave_data','seed', 'Weights', 'Var_data', 'var_a', 'var_b')
 else
