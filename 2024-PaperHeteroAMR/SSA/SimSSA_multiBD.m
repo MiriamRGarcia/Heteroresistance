@@ -1,5 +1,6 @@
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-% SSA_multiBD: SSA algorithm for the multivariate BD heteroresistance model
+% SimSSA_multiBD: SSA (direct method) to generate trajectories of
+%                 the multivariate BD heteroresistance model
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 function [CFUS, CFUST] = SimSSA_multiBD(tmod, r, pars, Cexp, N_TL)
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -8,24 +9,26 @@ function [CFUS, CFUST] = SimSSA_multiBD(tmod, r, pars, Cexp, N_TL)
 % r     = Discretisation of the AMR level (values between entire sensitivity
 %         S = 0 and entire resistance R = 1) (nr x 1),
 % pars  = Array of model parameters,
-% Cexp  = Antimicrobial concentrations (constant),
+% Cexp  = Antimicrobial concentrations (assumed constant in each experiment),
 % N_TL  = Maximum cell count to stop simulation,
-% seed  = Seed to generate random numbers for reproducibility,
+% seed  = Seed to generate uniform random numbers (for data reproducibility),
 %
 % OUTPUT:
 % CFUS  = Array with the multivariate BD process at the model times tmod
-%         (size nt x nr x Nexp),
-% CFUST = Array with the total counts (nt + Nexp);
+%         (size: nt x nr x Nexp),
+% CFUST = Array with the total counts (size: nt x Nexp);
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
+nt   = numel(tmod);
+nr   = numel(r);                                                    
 Nexp = numel(Cexp);
 
 % ----------------------------------------------------------------------- %
 % Calculate BDM rates:
 
 % Obtain parameter values:
-bS        = pars(1);                                                      
-bR        = pars(2);
+b_S       = pars(1);                                                      
+b_R       = pars(2);
 
 alpha_b   = pars(3);
 
@@ -42,38 +45,34 @@ k_xi      = pars(10);
 N_T0      = pars(11);
 lambda_T0 = pars(12);
 
-% Matrix with modification rates:
-nr  = numel(r);                                                         % Size of the AMR level discretisation,   
-
-RR  = repmat(r, 1, nr) - repmat(r.', nr, 1);                         % Auxiliary matrix to calculate modification rate,
+% Build matrix with modification rates:
+RR  = repmat(r, 1, nr) - repmat(r.', nr, 1);                   
 RR  = RR - triu(RR) + tril(RR).';
 
-Xi  = xi_SR*exp(k_xi*(1 - RR));                                            % Matrix with modification rates,                                       
+Xi  = xi_SR*exp(k_xi*(1 - RR));                                                                        
 Xi  = Xi - diag(diag(Xi));
 
 % Birth rate:
-b    = bR*bR./(bR + r.^alpha_b*(bS - bR));            
+b     = b_R*b_R./(b_R + r.^alpha_b*(b_S - b_R));            
 
 % Maximal death rate:
 d_max = d_maxS*beta_d^alpha_d*(1 - r.^alpha_d)./(beta_d^alpha_d + r.^alpha_d);                                                    
-
 
 % ----------------------------------------------------------------------- %
 % Preeliminary calculations for SSA:
 
 % Time discretisation:
-nt = numel(tmod);                                                          % Size of the time discretisation,
-t0 = tmod(1);                                                              % Initial simulation time,
-tf = tmod(nt);                                                             % Final simulation time,
+t0 = tmod(1);                                                             
+tf = tmod(nt);                                                        
 
 % Initial heteroresistance distribution:
-f0 = exp(-lambda_T0*r);                                                    % Exponentially decaying subpopulations frequencies,
+f0 = exp(-lambda_T0*r);                                                 
 f0 = f0/sum(f0);
 
-N0    = floor(N_T0*f0);                                                    % Initial number of cells,
+N0    = floor(N_T0*f0);                                               
 N0(1) = N0(1) + N_T0 - sum(N0);
 
-% Calculate matrix of state transitions:
+% Calculate matrix with state transitions:
 trans    = [];
 can_bas  = eye(nr, nr);
 
@@ -117,11 +116,11 @@ for iexp = 1:Nexp
     while tsim < tf                                   
     
         % --------------------------------------------------------------- %
-        % Calculate propensity function:
+        % Calculate reaction rates:
         prp_b = prp_BM.*repmat(cell_counts, 1, nr);
         prp_d = (d.*cell_counts).';
     
-        prp   = [prp_b;                                                        % Array of propensities for reactions,
+        prp   = [prp_b;                                                    % Array of reaction rates,
                  prp_d];
          
         prp   = reshape(prp, [], 1);
@@ -132,7 +131,6 @@ for iexp = 1:Nexp
     
         tau  = -log(rand)/prp_sum;                                         % Calculate time to the next reaction,
         tsim = tsim + tau;                                                 % Actualice simulation time,
-
     
         aux = rand*prp_sum;                                                % Calculate index of the next reaction,
         isum = 0;
@@ -157,14 +155,14 @@ for iexp = 1:Nexp
     
         N_T = sum(cell_counts);                                            % Total cell counts,
 
-        if N_T > N_TL                                                      % Stop simulation if total counts reach the limit value,
+        if N_T > N_TL                                                      % Stop simulation if total counts reached the limit value,
         
             tint_count = tint_count + 1;
             CFUS(tint_count, 1:nr, iexp) = cell_counts;
             CFUS(tint_count + 1:nt, 1:nr, iexp) = NaN;
             break
         
-        elseif N_T < 1                                                     % Stop simulation if the population goes extinct,
+        elseif N_T < 1                                                     % Stop simulation if the population becomes extinct,
         
             CFUS(tint_count+1:nt, 1:nr, iexp) = zeros(nt - tint_count, 1:nr);
             break
@@ -179,6 +177,7 @@ for iexp = 1:Nexp
 
 end
 
+% Total cell counts:
 CFUST = sum(CFUS, 2);
 
 end
