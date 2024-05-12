@@ -1,6 +1,6 @@
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-% Fit the heteroresistance model to synthetic time-kill assay using 
-% Enhaced Scatter Search (ESS)
+% Fit the heteroresistance model to synthetic time-kill data using 
+% Maximum Likelihood Estimation (MLE) with Enhaced Scatter Search (ESS)
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 clear variables
 close all
@@ -8,30 +8,27 @@ close all
 addpath('Functions')
 addpath('Results')
 
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-% User-defined options:
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%-------------------------------------------------------------------------%
+% User-defined settings:
 
-% ----------------------------------------------------------------------- %
 % Options to generate random data:
 noise    = 'MNHo';                                                         % Noise assumption (= 'MNHo'; 'MNHe'; 'PN');
-Ntraj    = 3;                                                              % Number of trajectories to generate data;
+Ntraj    = 3;                                                              % Number of replicates;
 load_res = 0;                                                              % Load previous fit results (=1) or not (=0);
-seed     = 10;                                                             % Seed to generate random numbers;
+seed     = 10;                                                             % Seed to generate random gaussian numbers;
 
 if strcmp(noise, 'PN')
     itraj = [10 50 100];                                                   % Trajectories of the BD process to load;
 elseif strcomp(noise, 'MNHo')
     sd = 0.5;                                                              % Standard deviation of the measurement error (log scale);
 else
-    var_a = 1;                                                             % parsameters of variance for MNHe;
+    var_a = 1;                                                             % Parameters of variance for MNHe;
     var_b = 2;
 end
 
-% ----------------------------------------------------------------------- %
-% Values of model parsameters:
-bS      = 0.63;                                                            % Birth rate of S in absence of antimicrobial;                         
-bR      = 0.36;                                                            % Birth rate of R;
+% Values of model parameters:
+b_S     = 0.63;                                                            % Birth rate of S in absence of antimicrobial;                         
+b_R     = 0.36;                                                            % Birth rate of R;
 
 alpha_b = 2;                                                               % Shape coefficient for AMR fitness cost
 
@@ -48,14 +45,13 @@ k_xi    = log(1e2);                                                        % Sha
 N_T0      = 1e6;                                                           % Initial population size;
 lambda_T0 = 50;                                                            % Shape coefficient of initial condition;
 
-% ----------------------------------------------------------------------- %
 % Time discretisation:
 t0   = 0;                                                                  % Initial simulation time;
 tf   = 48;                                                                 % Final simulation time;
 ht   = 1e-3;                                                               % Time step for model simulation (solve ODEs);
-texp = [2 4 6 8 10 12 16 20 24 36 48];                                     % Sampling times;
+texp = [2 4 6 8 10 12 16 20 24 36 48];                                     % Sampling times for model calibration;
 
-% ----------------------------------------------------------------------- %
+
 % Discretisation of AMR level:
 equi = 0;                                                                  % Equispaced discretisation of AMR level (=1) or not (=0)
                                                                            % If equi = 0 the user must define the AMR level discretisation
@@ -74,15 +70,36 @@ end
 % Set ODE solver precision:
 ODEoptions = odeset('RelTol', 1.0e-6, 'AbsTol', 1.0e-6);
 
+% Plot results:
+plot_res = 1;                                                              % Plot calibration results (=1) or not (=0);
+
+% Define colors for each antimicrobial concentration:
+col1 = [39, 183, 222]/256;                                                 
+col2 = [250, 128, 114]/256;
+col3 = [75, 92, 56]/256;
+col4 = [250, 141, 34]/256;
+col5 = [90, 14, 45]/256;
+col6 = [242, 220, 35]/256;
+
+col  = [col1;col2;col3;col4;col5;col6];
+
+% Define markers for each antimicrobial concentration:
+mks{1} = 's';                                                              
+mks{2} = 'diamond';
+mks{3} = 'v';
+mks{4} = '^';
+mks{5} = '>';
+mks{6} = '<';
+
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % End of user-defined options
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-results_name = sprintf('Results/resPE_%s_%utraj.mat', noise, Ntraj);
+results_name = sprintf('Results/resPE_%s_%utraj.mat', noise, Ntraj);       % Name of the file to keep the PE results;
     
 rng(seed)                                                                  % Set seed for generate randoms;
 
-pars = [bS;bR;alpha_b;d_maxS;alpha_d;beta_d;EC_50d;H_d;xi_SR;...            % Array with model parsameters;
+pars = [b_S;b_R;alpha_b;d_maxS;alpha_d;beta_d;EC_50d;H_d;xi_SR;...         % Array with model parsameters;
        k_xi;N_T0;lambda_T0];
 
 tmod     = t0:ht:tf;                                                       % Array with times to simulate model;
@@ -107,38 +124,38 @@ Nexp  = numel(Cexp);
 
 if load_res == 1
     
-    load(results_name, 'NT_ave_data', 'pars_opt');
+    load(results_name, 'N_Tdata', 'N_Tave_data', 'pars_opt', 'Weights');
     
 else
     
     % ------------------------------------------------------------------- %
     % Load data of SSA trajectories for the PN case:
     if strcmp(noise, 'PN')
-        NT_data = zeros(ntexp, Nexp, Ntraj);
+        N_Tdata = zeros(ntexp, Nexp, Ntraj);
         for ii = itraj
-            traj_name = sprintf('2024-PaperHeteroAMR/SSA/Results/resSSA_%03u.mat', itraj);
-            load(traj_name, 'CFUST')
-            NT_data(1:ntexp, 1:Nexp, ii) = CFUST(texp_ind, 1:Nexp);
+            traj_name = sprintf('../SSA/Results/resSSA_%03u.mat', itraj);
+            load(traj_name, 'N_T')
+            N_Tdata(1:ntexp, 1:Nexp, ii) = N_T(texp_ind, 1:Nexp);
         end
-
+        
     else
         
-        % --------------------------------------------------------------- %
-        % Generate random trajectories for the MNHo or MNHe cases:
+    % ------------------------------------------------------------------- %
+    % Generate random trajectories for the MNHo or MNHe cases:
    
-        f0 = exp(-lambda_T0*r);
-        f0 = f0/sum(f0);
-        N0 = N_T0*f0;                                                      % Initial condition for ODEs;
+        f_0 = exp(-lambda_T0*r);
+        f_0 = f_0/sum(f_0);
+        N_0 = N_T0*f_0;                                                    % Initial condition for ODEs;
    
-        NT = zeros(nt, Nexp);                                              % Initialice total population size;
+        N_T = zeros(nt, Nexp);                                             % Initialice total population size;
                                                             
-        R = R - triu(R) + tril(R).';
+        R  = R - triu(R) + tril(R).';
         Xi = xiSR*exp(kxi*(1 - R));
         Xi = Xi - diag(diag(Xi));
 
         AA_aux = Xi' - diag(sum(Xi, 2));                                   % Initialice coefficient matrix;  
 
-        b     = bS*bR./(bR + r.^alpha_b*(bS - bR));                        % Birth rate;
+        b     = b_S*b_R./(b_R + r.^alpha_b*(b_S - b_R));                   % Birth rate;
         d_max = d_maxS*beta_d^alpha_d*(1 - r.^alpha_d)./...
             (beta_d^alpha_d + r.^alpha_d);                                 % Maximal kill rate;
      
@@ -150,34 +167,39 @@ else
 
             AA = AA_aux + diag(b - d);                                     % Coefficient matrix for ODEs;
 
-            [~, xout] = ode15s(@(t,s) Odes_cte(t, s, AA), tmod, N0, ODEoptions);
+            [~, xout] = ode15s(@(t,s) Odes_cte(t, s, AA), tmod, N_0, ODEoptions);
    
             
-            NT(1:nt, iexp) = sum(xout, 2);                                 % Total population size;
+            N_T(1:nt, iexp) = sum(xout, 2);                                 % Total population size;
         end
 
         % Add noise to data:
-        NT_aux = NT(texp_ind, 1:Nexp);
+        N_T_aux = N_T(texp_ind, 1:Nexp);
         if strcmp(noise, 'MNHo')
-            NT_data = log10(repmat(NT_aux, 1, 1, Ntraj)) + sd*randn(ntexp, Nexp, Ntraj);
+            N_Tdata = log10(repmat(N_T_aux, 1, 1, Ntraj)) + sd*randn(ntexp, Nexp, Ntraj);
         else
-            var     = var_a*NT_aux.^var_b;
-            NT_data = repmat(NT_aux, 1, 1, Ntraj) + repmat(sqrt(var), 1, 1, Ntraj).*randn(ntexp, Nexp, Ntraj);     
+            var     = var_a*N_T_aux.^var_b;
+            N_Tdata = repmat(N_T_aux, 1, 1, Ntraj) + repmat(sqrt(var), 1, 1, Ntraj).*randn(ntexp, Nexp, Ntraj);     
         end   
     end
     
-    NT_ave_data = sum(NT_data, 3)/Ntraj;
+    N_Tave_data = sum(N_Tdata, 3)/Ntraj;
+    
+    % Define weights to remove NaN data (PN case):
+    Weights = ones(ntexp, Nexp);
+    NaN_ind = find(isnan(N_Tave_data));
+    Weights(NaN_ind) = 0;
     
 end
 
 % ----------------------------------------------------------------------- %
 % Calibrate model with ESS:
 
-bSmin        = 0.5;                                                        % Bounds for the (common) decision variables;
-bSmax        = 5.0;
+b_Smin       = 0.5;                                                        % Bounds for the (common) decision variables;
+b_Smax       = 5.0;
 
-bRmin        = 1e-1;                                                         
-bRmax        = bSmin - 1e-2;
+b_Rmin       = 1e-1;                                                         
+b_Rmax       = b_Smin - 1e-2;
 
 alpha_bmin   = 0.1;
 alpha_bmax   = 10;
@@ -210,11 +232,11 @@ lambda_T0min = 10;
 lambda_T0max = 100;
 
 if nr > 2
-    problem.x_L = [bSmin;bRmin;alpha_bmin;d_maxSmin;alpha_dmin;beta_dmin;EC_50dmin;H_dmin;xi_SRmin;k_ximin;N_T0min;lambda_T0min]; 
-    problem.x_U = [bSmax;bRmax;alpha_bmax;d_maxSmax;alpha_dmax;beta_dmax;EC_50dmax;H_dmax;xi_SRmax;k_ximax;N_T0max;lambda_T0max];
+    problem.x_L = [b_Smin;b_Rmin;alpha_bmin;d_maxSmin;alpha_dmin;beta_dmin;EC_50dmin;H_dmin;xi_SRmin;k_ximin;N_T0min;lambda_T0min]; 
+    problem.x_U = [b_Smax;b_Rmax;alpha_bmax;d_maxSmax;alpha_dmax;beta_dmax;EC_50dmax;H_dmax;xi_SRmax;k_ximax;N_T0max;lambda_T0max];
 else
-    problem.x_L = [bSmin;bRmin;d_maxSmin;EC_50dmin;H_dmin;xi_SRmin;N_T0min;lambda_T0min]; 
-    problem.x_U = [bSmax;bRmax;d_maxSmax;EC_50dmax;H_dmax;xi_SRmax;N_T0max;lambda_T0max];
+    problem.x_L = [b_Smin;b_Rmin;d_maxSmin;EC_50dmin;H_dmin;xi_SRmin;N_T0min;lambda_T0min]; 
+    problem.x_U = [b_Smax;b_Rmax;d_maxSmax;EC_50dmax;H_dmax;xi_SRmax;N_T0max;lambda_T0max];
 end
 
 if strcmp(noise, 'MNHe')
@@ -245,7 +267,7 @@ opts.local.finish = 'fminsearch'; %'wdn2fb'; %'fsqp';
 % opts.local.n2 = 50;
 
 Results = ess_kernel(problem, opts, r, R, tmod, texp_ind, Cexp,...        % Call the optimization function (ESS):
-                     NT_data, pars_nom, Weights, ODEoptions);
+                     N_Tdata, pars_nom, Weights, ODEoptions);
 
 pars_opt = Results.xbest.*pars_nom;
 f_best   = Results.fbest;
@@ -256,44 +278,28 @@ delete ess_report.mat                                                      % Rem
 % Save results:
 if strcmp(noise, 'MNHo')
     save(results_name, 'r', 'tmod', 'texp', 'pars', 'pars_opt', 'f_best',...
-         'NT_data','NT_ave_data','seed', 'sd')
+         'N_Tdata','N_Tave_data','seed', 'Weights', 'sd')
 elseif strcmp(noise, 'MNHe')
     save(results_name, 'r', 'tmod', 'texp', 'pars', 'pars_opt', 'f_best',...
-         'NT_data','NT_ave_data','seed', 'var_a', 'var_b')
+         'N_Tdata','N_Tave_data','seed', 'Weights', 'var_a', 'var_b')
 else
     save(results_name, 'r', 'tmod', 'texp', 'pars', 'pars_opt', 'f_best',...
-         'NT_data','NT_ave_data','seed')
+         'N_Tdata','N_Tave_data','seed','Weights')
 end
 
 % ----------------------------------------------------------------------- %
 % Plot results:
 
-col1 = [39, 183, 222]/256;                                                  % Define colors,
-col2 = [250, 128, 114]/256;
-col3 = [75, 92, 56]/256;
-col4 = [250, 141, 34]/256;
-col5 = [90, 14, 45]/256;
-col6 = [242, 220, 35]/256;
+if plot_res == 1
+    % Transform to log10 scale:
+    if strcmp(noise, 'MNHo')
+        logNT_ave_data = N_Tave_data;
+    else
+        logNT_ave_data = log10(N_Tave_data);
+    end
 
-col  = [col1;col2;col3;col4;col5;col6];
-
-mks{1} = 's';                                                              % Define markers,
-mks{2} = 'diamond';
-mks{3} = 'v';
-mks{4} = '^';
-mks{5} = '>';
-mks{6} = '<';
-
-if strcmp(noise, 'MNHo')
-    logNT_ave_data = NT_ave_data;
-else
-    logNT_ave_data = log10(NT_ave_data);
+    PlotPE(tmod, r, par_opt, logNT_ave_data, col, mks)
 end
-
-PlotPE(tmod, r, par_opt, logNT_ave_data, col, mks)
 
 rmpath('Functions')
 rmpath('Results')
-
-
-
