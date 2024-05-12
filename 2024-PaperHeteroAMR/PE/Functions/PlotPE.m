@@ -1,11 +1,21 @@
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-% Plot results of model calibration
+% PlotPE: Plot results of model calibration
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-function PlotPE(tmod, r, par_opt, logNT_ave_data, col, mks) 
+function PlotPE(tmod, r, par_opt, logN_Tave_data, col, mks) 
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% INPUT:
+% tmod           = Simulation times for solve ODEs (nt x 1);
+% r              = Discretisation of the AMR level (values between entire 
+%                  sensitivity S = 0 and entire resistance R = 1) (nr x 1),
+% par_opt        = Calibrated values of model parameters;
+% logN_Tave_data = Total count data (log10 scale);
+% col            = Matrix with colors for each experiment;
+% mks            = Cell array with markers for each experiment;
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 % Obtain parameter values:
-bS        = par_opt(1);
-bR        = par_opt(2);
+b_S       = par_opt(1);
+b_R       = par_opt(2);
 alpha_b   = par_opt(3);
 d_maxS    = par_opt(4);
 alpha_d   = par_opt(5);
@@ -20,7 +30,7 @@ lambda_T0 = par_opt(12);
 % Initial condition:
 f0  = exp(-lambda_T0*r);
 f0  = f0/sum(f0);
-N0  = N_T0*f0;
+N_0 = N_T0*f0;
 
 % Initialice coefficient matrix:
 Xi = xi_SR*exp(k_xi*(1 - RR));
@@ -29,7 +39,7 @@ Xi = Xi - diag(diag(Xi));
 AA_aux = Xi' - diag(sum(Xi, 2));
 
 % Birth rate:
-b     = bS*bR./(bR + r.^alpha_b*(bS - bR));
+b     = b_S*b_R./(b_R + r.^alpha_b*(b_S - b_R));
 
 % Maximal death rate:
 d_max = d_maxS*beta_d^alpha_d*(1 - r.^alpha_d)./(beta_d^alpha_d + r.^alpha_d);
@@ -50,20 +60,20 @@ for iexp = 1:Nexp
     AA = AA_aux + diag(b - d);
 
     % Solve ODEs system:
-    [~, xout] = ode15s(@(s,y) Odes_cte(s, y, AA), tmod, N0, ODEoptions);
+    [~, xout] = ode15s(@(s,y) Odes_cte(s, y, AA), tmod, N_0, ODEoptions);
     
-    NT_mod    = sum(xout, 2);
-    logNT_mod = log10(NT_mod);
+    N_Tmod    = sum(xout, 2);
+    logN_Tmod = log10(N_Tmod);
     
-    plot(texp, logNT_ave_data, mks{iexp}, 'Color', col(iexp,:), 'MarkerSize', 10, 'MarkerFaceColor', col(iexp,:), 'MarkerEdgeColor', 'k', 'HandleVisibility', 'off')
-    plot(tmod, logNT_mod, 'Color', col(iexp, :), 'LineWidth', 1.5)
+    plot(texp, logN_Tave_data, mks{iexp}, 'Color', col(iexp,:), 'MarkerSize', 10, 'MarkerFaceColor', col(iexp,:), 'MarkerEdgeColor', 'k', 'HandleVisibility', 'off')
+    plot(tmod, logN_Tmod, 'Color', col(iexp, :), 'LineWidth', 1.5)
     
     lgd{iexp} = sprintf('$C=%0.2f$ (mg/L)', C);
 
 end
 
 xlabel('Time (h)', 'Interpreter', 'Latex', 'FontSize', 10)
-ylabel('Total Bacterial Count ($\log_{10}$CFUS/mL)', 'Interpreter', 'Latex', 'FontSize', 10)
+ylabel('Total Bacterial Count ($\log_{10}N_T$)', 'Interpreter', 'Latex', 'FontSize', 10)
 
 legend(lgd, 'Location', 'Best', 'Interpreter', 'Latex')
 
