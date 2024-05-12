@@ -66,8 +66,8 @@ for itraj = 1:Ntraj
     
     file_name = sprintf('Results/resSSA_%03u.mat', itraj);
     
-    [CFUS, CFUST] = SimSSA_multiBD(tmod, r, pars, Cexp, N_TL);
+    [N, NT] = SimSSA_multiBD(tmod, r, pars, Cexp, N_TL);
     
-    save(file_name, 'pars', 'tmod', 'r', 'Cexp', 'CFUS', 'CFUST', 'seed', 'N_TL')
+    save(file_name, 'pars', 'tmod', 'r', 'Cexp', 'N', 'NT', 'seed', 'N_TL')
     
 end
