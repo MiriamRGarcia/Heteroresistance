@@ -279,12 +279,17 @@ delete ess_report.mat                                                      % Rem
 % ----------------------------------------------------------------------- %
 % Save results:
 if strcmp(noise, 'MNHo')
+    auxN_Tdata = reshape(N_Tdata, [], 1);
+    auxN_Tmod  = reshape(N_Tmod(texp_ind, 1:Nexp), [], 1);
+
+    var        = sum((auxN_Tdata - auxN_Tmod).^2)/(ntexp*Nexp - 1);
+    sd         = sqrt(var);
     save(results_name, 'r', 'tmod', 'texp', 'pars', 'pars_opt', 'f_best',...
          'N_Tdata','N_Tave_data','seed', 'Weights', 'Var_data', 'sd')
 elseif strcmp(noise, 'MNHe')
     var_b = pars_opt(end);
-    % Falta calcular N_T
-    var_a = sum((N_Tave_data - N_T).^2./(N_T.^var_b))/(ntexp*Nexp);
+    % Falta calcular N_Tmod
+    var_a = sum((N_Tave_data - N_Tmod).^2./(N_Tmod.^var_b))/(ntexp*Nexp);
     save(results_name, 'r', 'tmod', 'texp', 'pars', 'pars_opt', 'f_best',...
          'N_Tdata','N_Tave_data','seed', 'Weights', 'Var_data', 'var_a', 'var_b')
 else
