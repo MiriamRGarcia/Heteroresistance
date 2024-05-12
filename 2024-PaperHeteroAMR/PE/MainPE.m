@@ -280,13 +280,13 @@ delete ess_report.mat                                                      % Rem
 % Save results:
 if strcmp(noise, 'MNHo')
     save(results_name, 'r', 'tmod', 'texp', 'pars', 'pars_opt', 'f_best',...
-         'N_Tdata','N_Tave_data','seed', 'Weights', 'sd')
+         'N_Tdata','N_Tave_data','seed', 'Weights', 'Var_data', 'sd')
 elseif strcmp(noise, 'MNHe')
     save(results_name, 'r', 'tmod', 'texp', 'pars', 'pars_opt', 'f_best',...
-         'N_Tdata','N_Tave_data','seed', 'Weights', 'var_a', 'var_b')
+         'N_Tdata','N_Tave_data','seed', 'Weights', 'Var_data', 'var_a', 'var_b')
 else
     save(results_name, 'r', 'tmod', 'texp', 'pars', 'pars_opt', 'f_best',...
-         'N_Tdata','N_Tave_data','seed','Weights')
+         'N_Tdata','N_Tave_data','seed','Weights', 'Var_data')
 end
 
 % ----------------------------------------------------------------------- %
