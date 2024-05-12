@@ -14,9 +14,9 @@ function [CFUS, CFUST] = SimSSA_multiBD(tmod, r, pars, Cexp, N_TL)
 % seed  = Seed to generate uniform random numbers (for data reproducibility),
 %
 % OUTPUT:
-% CFUS  = Array with the multivariate BD process at the model times tmod
+% N   = Array with the multivariate BD process at the model times tmod
 %         (size: nt x nr x Nexp),
-% CFUST = Array with the total counts (size: nt x Nexp);
+% N_T = Array with the total counts (size: nt x Nexp);
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 nt   = numel(tmod);
@@ -69,8 +69,8 @@ tf = tmod(nt);
 f0 = exp(-lambda_T0*r);                                                 
 f0 = f0/sum(f0);
 
-N0    = floor(N_T0*f0);                                               
-N0(1) = N0(1) + N_T0 - sum(N0);
+N_0    = floor(N_T0*f0);                                               
+N_0(1) = N0(1) + N_T0 - sum(N0);
 
 % Calculate matrix with state transitions:
 trans    = [];
@@ -95,12 +95,12 @@ prp_BM = diag(b) + Xi;
 
 % ----------------------------------------------------------------------- %
 % Run SSA:
-CFUS  = zeros(nt, nr, Nexp);    
+N  = zeros(nt, nr, Nexp);    
    
 for iexp = 1:Nexp
     
     % Initial condition:
-    CFUS(1, 1:nr, iexp) = N0;
+    N(1, 1:nr, iexp) = N_0;
     
     % Kill rate:
     HC = Cexp(iexp)^H_d/(Cexp(iexp)^H_d + EC_50d^H_d);
@@ -148,7 +148,7 @@ for iexp = 1:Nexp
     
         if tind - 1 > tint_count                                           % Comprobate if discretisation interval changed,
             tint_count = tint_count + 1;
-            CFUS(tint_count, 1:nr, iexp) = cell_counts;
+            N(tint_count, 1:nr, iexp) = cell_counts;
         end  
     
         cell_counts = cell_counts + trans(inext, 1:nr).';
@@ -158,13 +158,13 @@ for iexp = 1:Nexp
         if N_T > N_TL                                                      % Stop simulation if total counts reached the limit value,
         
             tint_count = tint_count + 1;
-            CFUS(tint_count, 1:nr, iexp) = cell_counts;
-            CFUS(tint_count + 1:nt, 1:nr, iexp) = NaN;
+            N(tint_count, 1:nr, iexp) = cell_counts;
+            N(tint_count + 1:nt, 1:nr, iexp) = NaN;
             break
         
         elseif N_T < 1                                                     % Stop simulation if the population becomes extinct,
         
-            CFUS(tint_count+1:nt, 1:nr, iexp) = zeros(nt - tint_count, 1:nr);
+            N(tint_count+1:nt, 1:nr, iexp) = zeros(nt - tint_count, 1:nr);
             break
         
         end
@@ -173,11 +173,11 @@ for iexp = 1:Nexp
 
     % ----------------------------------------------------------------------- %
     % If the time to next reaction exceds the final time:
-    CFUS(tint_count:nt, 1:nr, iexp) = repmat(CFUS(tint_count, 1:nr, iexp), nt - tint_count + 1, 1);
+    N(tint_count:nt, 1:nr, iexp) = repmat(N(tint_count, 1:nr, iexp), nt - tint_count + 1, 1);
 
 end
 
 % Total cell counts:
-CFUST = sum(CFUS, 2);
+N_T = sum(N, 2);
 
 end
