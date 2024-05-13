@@ -19,12 +19,12 @@ Ntraj = 3;
 LDL   = 10;
 
 % Load experimental setup:
-load('C:\Users\RYZEN9\Desktop\NEREA\Matlab\2023-HeteroRes\Paper_IdentObs\PE\TP_data\resFit_TP_3traj', 'tmod', 'rr', 'par')
+load('..\PE\Results\resPE_PN_3traj', 'tmod', 'rr', 'par')
 
 % Number of experiments:
 bS     = par(1);
 d_maxS = par(4);
-EC_50d    = par(7);
+EC_50d = par(7);
 H_d    = par(8);
 
 MIC_S  = EC_50d*(bS/(d_maxS - bS))^(1/H_d);
@@ -48,8 +48,7 @@ RR       = RR - triu(RR) + tril(RR).';
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % (2) First subplot: results with measurement homocesdastic noise
-path_name = 'C:\Users\RYZEN9\Desktop\NEREA\Matlab\2023-HeteroRes\Paper_IdentObs\PE\DT_data\Homo\Log';
-file_name = strcat(path_name, filesep, 'resFit_TD_', num2str(Ntraj),'traj_log.mat');
+file_name = sprintf('..\PE\Results\resPE_MNHo_%u.mat', Ntraj);
 
 load(file_name, 'par', 'seed')
 
@@ -260,8 +259,7 @@ box off
 % (3) Plot fit results with measurement heteroscedastic noise
 clear logCFUS_data logCFUS_mod logCFUS_traj optpar
 
-path_name = 'C:\Users\RYZEN9\Desktop\NEREA\Matlab\2023-HeteroRes\Paper_IdentObs\PE\DT_data\Hetero';
-file_name = strcat(path_name, filesep, 'resFit_TD_Hetero_', num2str(Ntraj),'traj_b2.mat');
+file_name = sprintf('..\PE\Results\resPE_MNHe_%u.mat', Ntraj);
 
 load(file_name, 'par', 'seed')
 
@@ -331,8 +329,7 @@ box off
 % (3) Third subplot: fit results with process noise
 clear logCFUS_data logCFUS_mod logCFUS_traj par
 
-path_name = 'C:\Users\RYZEN9\Desktop\NEREA\Matlab\2023-HeteroRes\Paper_IdentObs\PE\TP_data';
-file_name = strcat(path_name, filesep, 'resFit_TP_', num2str(Ntraj),'traj.mat');
+file_name = sprintf('..\PE\Results\resPE_TP_%u.mat', Ntraj);
 
 load(file_name, 'optSol', 'nom_par', 'CFUS_data', 'CFUS_traj')
 
