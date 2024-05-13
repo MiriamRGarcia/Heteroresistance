@@ -1,7 +1,7 @@
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % PlotPE: Plot results of model calibration
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-function PlotPE(tmod, r, par_opt, logN_Tave_data, col, mks) 
+function PlotPE(tmod, texp, r, Cexp, par_opt, logN_Tave_data, col, mks, ODEoptions) 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % INPUT:
 % tmod           = Simulation times for solve ODEs (nt x 1);
@@ -33,9 +33,10 @@ f0  = f0/sum(f0);
 N_0 = N_T0*f0;
 
 % Initialice coefficient matrix:
-R = repmat(r, 1, nr) - repmat(r.', nr, 1);
-R = R - triu(R) + tril(R).';
-Xi = xi_SR*exp(k_xi*(1 - RR));
+nr = numel(r);
+R  = repmat(r, 1, nr) - repmat(r.', nr, 1);
+R  = R - triu(R) + tril(R).';
+Xi = xi_SR*exp(k_xi*(1 - R));
 Xi = Xi - diag(diag(Xi));
 
 AA_aux = Xi' - diag(sum(Xi, 2));
@@ -51,7 +52,8 @@ figure
 
 hold on
 
-lgd = cell(Nexp, 1);
+Nexp = numel(Cexp);
+lgd  = cell(Nexp, 1);
 
 for iexp = 1:Nexp
     
@@ -67,7 +69,7 @@ for iexp = 1:Nexp
     N_Tmod    = sum(xout, 2);
     logN_Tmod = log10(N_Tmod);
     
-    plot(texp, logN_Tave_data, mks{iexp}, 'Color', col(iexp,:), 'MarkerSize', 10, 'MarkerFaceColor', col(iexp,:), 'MarkerEdgeColor', 'k', 'HandleVisibility', 'off')
+    plot(texp, logN_Tave_data(:,iexp), mks{iexp}, 'Color', col(iexp,:), 'MarkerSize', 10, 'MarkerFaceColor', col(iexp,:), 'MarkerEdgeColor', 'k', 'HandleVisibility', 'off')
     plot(tmod, logN_Tmod, 'Color', col(iexp, :), 'LineWidth', 1.5)
     
     lgd{iexp} = sprintf('$C=%0.2f$ (mg/L)', C);
