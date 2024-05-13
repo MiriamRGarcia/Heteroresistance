@@ -12,21 +12,16 @@ addpath('Results')
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 % Confidence level:
-confLev  = 0.95;
+confLev  = 0.9;
 
 % Noise assumption (= 'MNHo'; 'MNHe'; 'PN');
-noise    = 'MNHo';    
-
-% Define weights for PN case to remove NaN data:
-if strcmp(noise, 'PN')
-    Weights = [1 1 1;1 1 1;1 1 1];
-end
+noise    = 'PN';    
 
 % Set ODE solver precision:
 ODEoptions = odeset('RelTol', 1.0e-6, 'AbsTol', 1.0e-6);
     
 % Use new defined settings (=1) or load calibration results (=0):
-load_res = 0;
+load_res = 1;
 
 if load_res < 1
     % Number of replicates used in MLE to load results:
@@ -58,6 +53,8 @@ else
     elseif strcmp(noise, 'MNHe')
         var_a = 1;
         var_b = 2;
+    else
+        itraj = [1 100 1000];
     end
     
     % Time discretisation:
@@ -69,7 +66,7 @@ else
 
 
     % Discretisation of AMR level:
-    equi = 0;                                                              % Equispaced discretisation of AMR level (=1) or not (=0)
+    equi = 1;                                                              % Equispaced discretisation of AMR level (=1) or not (=0)
                                                                            % If equi = 0 the user must define the AMR level discretisation
                                                                            % as a column array. For example: r = [0.3;0.35;0.7;0.99];
     r    = [];                                                             % Discretisation of AMR level if equi = 0;
@@ -102,44 +99,81 @@ if load_res < 1
     % Load optimal parameters and calibration settings:
     results_name = sprintf('../PE/Results/resPE_%s_%utraj.mat', noise, Ntraj); 
     if strcmp(noise, 'MNHo')
-        load(results_name, 'r', 'tmod', 'texp', 'pars_opt', 'sd')
+        load(results_name, 'r', 'tmod', 'Cexp', 'texp', 'pars_opt', 'Weights', 'Var_data', 'sd')
     elseif strcmp(noise, 'MNHe')
-        load(results_name, 'r', 'tmod', 'texp', 'pars_opt', 'var_a', 'var_b')
+        load(results_name, 'r', 'tmod', 'Cexp', 'texp', 'pars_opt', 'Weights', 'Var_data', 'var_a', 'var_b')
+        pars_opt = pars_opt(1:end-1);
     else
-        load(results_name, 'r', 'tmod', 'texp', 'pars_opt', 'Weights', 'Var_data')
+        load(results_name, 'r', 'tmod', 'Cexp', 'texp', 'pars_opt', 'Weights', 'Var_data')
     end
     FIM_pars  = pars_opt;
     N_T0      = FIM_pars(end-1);
     lambda_T0 = FIM_pars(end);
 else
-    tmod     = sort(unique([tmod texp])).'; 
-    texp_ind = find(ismember(tmod, texp));  
+    tmod     = sort(unique([tmod texp])).';   
 end
+
+texp_ind = find(ismember(tmod, texp));
 
 % Problem sizes:
 nr    = numel(r);
 nt    = numel(tmod);    
 ntexp = numel(texp);
-np    = numel(par);
+np    = numel(FIM_pars);
 Nexp  = numel(Cexp);
+
+Weights = ones(ntexp, Nexp);
+NaN_ind = find(Weights == 0);
 
 % ----------------------------------------------------------------------- %
 % Calculate sensitivity matrix:
 
 % Initial condition:
-f0  = exp(-lambda_T0*rr);
+f0  = exp(-lambda_T0*r);
 f0  = f0/sum(f0);
 N_0 = N_T0*f0;
 
 % Call function to calculate sensitivities:
-[N_T, sensN_T] = Sens_MultiExp(tmod, r, Cexp, FIM_pars, N_0, ODEoptions);
+[N_T, sensN_T] = SensMultiExp(tmod, r, Cexp, FIM_pars, N_0, ODEoptions);
 
+% ----------------------------------------------------------------------- %
+% Build covariance matrix:
+if strcmp(noise, 'MNHo')
+    CovMatrix = sd^2*ones(ntexp*Nexp,ntexp*Nexp);
+    pars_var  = [];
+elseif strcmp(noise, 'MNHe')
+    auxN_T    = reshape(N_T(texp_ind, 1:Nexp).', [], 1); 
+    CovMatrix = diag(var_a*auxN_T.^var_b);
+    pars_var  = [var_a;var_b];
+else
+    % Calculate sample variances:
+    Ntraj   = numel(itraj);
+    N_Tdata = zeros(ntexp, Nexp, Ntraj);
+    aux_ii  = 1;
+    
+    for ii = itraj
+        traj_name = sprintf('../SSA/Results/resSSA_%03u.mat', ii);
+        load(traj_name, 'N_T')
+        N_Tdata(1:ntexp, 1:Nexp, aux_ii) = N_T(texp_ind, 1:Nexp);
+        aux_ii = aux_ii + 1;
+    end
+    
+    N_Tave_data = sum(N_Tdata, 3)/Ntraj;
+    NaN_ind     = find(isnan(N_Tave_data));
+    
+    Var_data    = sum((N_Tdata - repmat(N_Tave_data, 1, 1, Ntraj)).^2, 3)/(Ntraj - 1);
+    
+    N_Tave_data(NaN_ind) = [];
+    Var_data(NaN_ind)    = [];
+    
+    Var_data  = reshape(Var_data, [], 1);
+    CovMatrix = diag(Var_data);
+    pars_var  = [];
+end
 
 % ----------------------------------------------------------------------- %
 % Build sensitivity matrix:
 SensMatrix = [];
-
-NaN_ind = find(Weights == 0); % Remove time points with no data,
 
 if strcmp(noise, 'MNHo')
     % Log10 of total average count:
@@ -195,26 +229,15 @@ else
     end
 end
 
-% ----------------------------------------------------------------------- %
-% Build covariance matrix:
-if strcmp(noise, 'MNHo')
-    CovMatrix = sd^2*ones(ntexp*Nexp,ntexp*Nexp);
-elseif strcmp(noise, 'MNHe')
-    auxN_T    = reshape(N_T(texp_ind, 1:Nexp).', [], 1); 
-    CovMatrix = diag(var_a*xT.^var_b);
-else
-    Var_data(NaN_ind) = [];
-    Var_data  = reshape(Var_data, [], 1);
-    CovMatrix = diag(Var_data);
-end
 
 % ----------------------------------------------------------------------- %
 % Calculate confidence intervals from FIM:
-[FIM, FIMConfInt] = Fisher_CI(FIM_pars, pars_nom, SensMatrix, normSensMatrix, CovMatrix, confLev);  
+[FIM, FIMConfInt] = FIM_ConfInt(FIM_pars, pars_nom, pars_var, SensMatrix, normSensMatrix, CovMatrix, confLev, noise, Nexp, ntexp);  
 
 % ----------------------------------------------------------------------- %
 % Save results:
 res_name = sprintf('Results/resFIM_%s.mat', noise);
 save(res_name, 'r', 'tmod', 'texp', 'Cexp', 'FIM_pars', 'pars_nom', 'CovMatrix', 'FIM', 'FIMConfInt')
 
-
+rmpath('Functions')
+rmpath('Results')
