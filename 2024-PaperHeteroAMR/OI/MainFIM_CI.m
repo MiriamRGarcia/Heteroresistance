@@ -141,17 +141,39 @@ SensMatrix = [];
 
 NaN_ind = find(Weights == 0); % Remove time points with no data,
 
-for ip = 1:np
-    
-    % Obtain sensitivities at the sampling times:
-    aux = reshape(sensN_T(texp_ind, ip, 1:Nexp), ntexp, Nexp);
-    
-    aux(NaN_ind) = [];
+if strcmp(noise, 'MNHo')
+    % Log10 of total average count:
+    y_T = log10(N_T);
 
-    % Scaling by the nominal parameter (transformation par* = par/nom_par):
-    aux = pars_nom(ip)*aux;
+    % Calculate sensitivities of y_T to parameters:
+    sensy_T = zeros(nt, np, Nexp);
+
+    for ip = 1:np
+        aux = reshape(sensN_T(1:nt, ip, 1:Nexp), nt, Nexp);
+        aux = (aux./N_T)/log(10);
+        sensy_T(1:nt, ip, 1:Nexp) = aux;
+        
+        % Obtain sensitivities at the sampling times:
+        aux = reshape(sensy_T(texp_ind, ip, 1:Nexp), ntexp, Nexp);
     
-    SensMatrix = [SensMatrix reshape(aux.', [], 1)];
+        % Scaling by the nominal parameter (transformation par* = par/nom_par):
+        aux = pars_nom(ip)*aux;
+    
+        SensMatrix = [SensMatrix reshape(aux.', [], 1)];
+    end
+else
+    for ip = 1:np
+    
+        % Obtain sensitivities at the sampling times:
+        aux = reshape(sensN_T(texp_ind, ip, 1:Nexp), ntexp, Nexp);
+    
+        aux(NaN_ind) = [];
+
+        % Scaling by the nominal parameter (transformation par* = par/nom_par):
+        aux = pars_nom(ip)*aux;
+    
+        SensMatrix = [SensMatrix reshape(aux.', [], 1)];
+    end
 end
 
 % Normalised sensitivity matrix using the sampling times:      
@@ -159,10 +181,18 @@ end
 % before reescaling using nominal values. 
 normSensMatrix = [];
 
-for ip = 1:np
-    aux = reshape(sensN_T(texp_ind, ip, 1:Nexp), ntexp, Nexp);
-    aux = FIM_pars(ip)*aux./N_T(texp_ind, 1:Nexp);
-    normSensMatrix = [normSensMatrix reshape(aux.',[],1)];
+if strcmp(noise, 'MNHo')
+     for ip = 1:np
+        aux = reshape(sensy_T(texp_ind, ip, 1:Nexp), ntexp, Nexp);
+        aux = FIM_pars(ip)*aux./N_T(texp_ind, 1:Nexp);
+        normSensMatrix = [normSensMatrix reshape(aux.',[],1)];
+    end   
+else
+    for ip = 1:np
+        aux = reshape(sensN_T(texp_ind, ip, 1:Nexp), ntexp, Nexp);
+        aux = FIM_pars(ip)*aux./N_T(texp_ind, 1:Nexp);
+        normSensMatrix = [normSensMatrix reshape(aux.',[],1)];
+    end
 end
 
 % ----------------------------------------------------------------------- %
@@ -180,7 +210,11 @@ end
 
 % ----------------------------------------------------------------------- %
 % Calculate confidence intervals from FIM:
-[FIM, FConfInt] = Fisher_CI(FIM_pars, pars_nom, SensMatrix, normSensMatrix, CovMatrix, confLev);  
+[FIM, FIMConfInt] = Fisher_CI(FIM_pars, pars_nom, SensMatrix, normSensMatrix, CovMatrix, confLev);  
 
+% ----------------------------------------------------------------------- %
+% Save results:
+res_name = sprintf('Results/resFIM_%s.mat', noise);
+save(res_name, 'r', 'tmod', 'texp', 'Cexp', 'FIM_pars', 'pars_nom', 'CovMatrix', 'FIM', 'FIMConfInt')
 
 
