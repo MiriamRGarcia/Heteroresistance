@@ -33,6 +33,8 @@ f0  = f0/sum(f0);
 N_0 = N_T0*f0;
 
 % Initialice coefficient matrix:
+R = repmat(r, 1, nr) - repmat(r.', nr, 1);
+R = R - triu(R) + tril(R).';
 Xi = xi_SR*exp(k_xi*(1 - RR));
 Xi = Xi - diag(diag(Xi));
 
