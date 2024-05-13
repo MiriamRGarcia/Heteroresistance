@@ -14,7 +14,7 @@ addpath('Results')
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 % Options to generate random data:
-noise    = 'MNHo';                                                         % Noise assumption (= 'MNHo'; 'MNHe'; 'PN');
+noise    = 'PN';                                                         % Noise assumption (= 'MNHo'; 'MNHe'; 'PN');
 Ntraj    = 3;                                                              % Number of replicates;
 load_res = 0;                                                              % Load previous fit results (=1) or not (=0);
 seed     = 10;                                                             % Seed to generate random gaussian numbers;
@@ -78,12 +78,12 @@ ODEoptions = odeset('RelTol', 1.0e-6, 'AbsTol', 1.0e-6);
 
 % ESS solver options:
 opts.maxtime      = 1.0e6;                                                 % Maximum optimisation time;                                      
-opts.maxeval      = 1.0e4;                                                 % Maximum number of evaluations of the cost function;
+opts.maxeval      = 1.0e1;                                                 % Maximum number of evaluations of the cost function;
 opts.strategy     = 1;                                                     % (=1) fast, (=3) robust;
-opts.local.solver = 'fminsearch'; %'fmincon';'solnp';  %'wdn2fb';  %'fsqp';% Local solver;
-opts.local.finish = 'fminsearch';%'fmincon'; %'wdn2fb'; %'fsqp';           % Local solver for final refinment;
-%opts.local.n1 = 20;                                                       % Maximum number of iterations of the local solver;
-%opts.local.n2 = 20;
+opts.local.solver = 'fmincon'; %'fmincon';'solnp';  %'wdn2fb';  %'fsqp';% Local solver;
+opts.local.finish = [];%'fminsearch';%'fmincon'; %'wdn2fb'; %'fsqp';           % Local solver for final refinment;
+%opts.local.n1 = 1;                                                         % Maximum number of iterations of the local solver;
+%opts.local.n2 = 1;
 
 % Plot results:
 plot_res = 1;                                                              % Plot calibration results (=1) or not (=0);
@@ -110,7 +110,7 @@ mks{6} = '<';
 % End of user-defined settings
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-results_name = sprintf('Results/resPE_%s_%utraj.mat', noise, Ntraj);       % Name of the file to keep the PE results;
+results_name = sprintf('Results/res1PE_%s_%utraj.mat', noise, Ntraj);       % Name of the file to keep the PE results;
     
 rng(seed)                                                                  % Set seed for generate randoms (MNHo and MNHe cases);
 
@@ -261,7 +261,7 @@ if strcmp(noise, 'MNHe')
     var_bmin    = 0;
     var_bmax    = 2;
     problem.x_L = [problem.x_L;var_bmin];
-    problem.x_U = [problem.x_U;varb_max];
+    problem.x_U = [problem.x_U;var_bmax];
 end
 pars_nom    = problem.x_L + (problem.x_U - problem.x_L).*rand(size(problem.x_L));
 problem.x_L = problem.x_L./pars_nom;
@@ -368,7 +368,7 @@ if plot_res == 1
         logNT_ave_data = log10(N_Tave_data);
     end
 
-    PlotPE(tmod, r, pars_opt, logNT_ave_data, col, mks)
+    PlotPE(tmod, texp, r, Cexp, pars_opt, logNT_ave_data, col, mks, ODEoptions)
 end
 
 rmpath('Functions')
