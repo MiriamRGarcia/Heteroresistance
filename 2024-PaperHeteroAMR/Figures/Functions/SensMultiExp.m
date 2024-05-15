@@ -1,39 +1,52 @@
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-% Calculate sensitivities of the average heteroresistance model
+% SensMultiExp: Sensitivities of the average heteroresistance model
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-function [NT, sens_NT] = SensMultiExp(tmod, r, C, par, N0, ODEoptions)
+function [N_T, sensN_T] = SensMultiExp(tmod, r, C, pars, N_0, ODEoptions)
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% INPUT:
+% tmod       = Simulation times (nt x 1);
+% r          = Discretisation of AMR level (nr x 1);
+% C          = Array of (constant) antimicrobial concentrations (Nexp x 1);
+% pars       = Values of model parameters (np x 1);
+% N_0        = Initial cell counts (nr x 1);
+% ODEoptions = Options to solve ODEs;
+%
+% OUTPUT:
+% N_T     = Average cell counts (nt x Nexp),
+% sensN_T = Sensitivity of cell counts to model parameters (nt x Nexp x np);
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 % ----------------------------------------------------------------------- %
 % Problem sizes:
 nC = numel(C);                                                     
 nt = numel(tmod);                                                    
 nr = numel(r);                                                        
-np = numel(par);                                                   
+np = numel(pars);                                                   
 
 % ----------------------------------------------------------------------- %
 % Obtain parameter values:
-bS        = par(1);
-bR        = par(2);
-alpha_b   = par(3);
+b_S       = pars(1);
+b_R       = pars(2);
+alpha_b   = pars(3);
 
-d_maxS    = par(4);
-alpha_d   = par(5);
-beta_d    = par(6);
+d_maxS    = pars(4);
+alpha_d   = pars(5);
+beta_d    = pars(6);
 
-EC_50d    = par(7);
-H_d       = par(8);
+EC_50d    = pars(7);
+H_d       = pars(8);
 
-xi_SR     = par(9);
-k_xi      = par(10);
+xi_SR     = pars(9);
+k_xi      = pars(10);
 
-N_T0      = par(11);
-lambda_T0 = par(12);
+N_T0      = pars(11);
+lambda_T0 = pars(12);
 
 % ----------------------------------------------------------------------- %
 % Initial condition of the sensitivity system (same for each experiment):
 
 % Initial condition for average and sensitivities:
-s0 = [N0;
+s0 = [N_0;
       zeros(nr*(np - 2),1)];                                               % Initial conditions are independent of parameters
                                                                            % unless for X0 and lamb_IC
 % Ampliate with the initial condition for sensitivity to IC parameters:
@@ -61,51 +74,51 @@ Xi = Xi - diag(diag(Xi));
 AA_aux = Xi - diag(sum(Xi, 2));
 
 % Derivative of the dynamics with respect to bS:
-d_mugS(1)  = 1;
-d_mugS(nr) = 0;
-d_mugS(2:(nr-1)) = bR^2*(1 - r(2:(nr-1)).^alpha_b)./(r(2:(nr-1)).^alpha_b*(bR - bS) - bR).^2;
+db_S(1)  = 1;
+db_S(nr) = 0;
+db_S(2:(nr-1)) = b_R^2*(1 - r(2:(nr-1)).^alpha_b)./(r(2:(nr-1)).^alpha_b*(b_R - b_S) - b_R).^2;
 
-AA_bS = diag(d_mugS);
+AA_bS = diag(db_S);
 
 % Derivative with respect to bR:
-d_mugR(1)  = 0;
-d_mugR(nr) = 1;
-d_mugR(2:(nr-1)) = bS^2*r(2:(nr-1)).^alpha_b./(bR + r(2:(nr-1)).^alpha_b*(bS - bR)).^2;
+db_R(1)  = 0;
+db_R(nr) = 1;
+db_R(2:(nr-1)) = b_S^2*r(2:(nr-1)).^alpha_b./(b_R + r(2:(nr-1)).^alpha_b*(b_S - b_R)).^2;
 
-AA_bR    = diag(d_mugR);
+AA_bR    = diag(db_R);
 
 % Derivative with respect to alpha_b:
-d_alphg(1)  = 0;
-d_alphg(nr) = 0;
-d_alphg(2:(nr-1)) = bR*bS*(bR - bS)*log(r(2:(nr-1))).*r(2:(nr-1)).^alpha_b./(bR + r(2:(nr-1)).^alpha_b*(bS - bR)).^2;
+dalpha_b(1)  = 0;
+dalpha_b(nr) = 0;
+dalpha_b(2:(nr-1)) = b_R*b_S*(b_R - b_S)*log(r(2:(nr-1))).*r(2:(nr-1)).^alpha_b./(b_R + r(2:(nr-1)).^alpha_b*(b_S - b_R)).^2;
 
-AA_alpha_b  = diag(d_alphg);
+AA_alpha_b  = diag(dalpha_b);
 
 % Derivative with respect to xi_SR:
-d_xiSR  = exp(k_xi*(1 - RR));
-d_xiSR  = d_xiSR - diag(diag(d_xiSR));
-AA_xiSR = d_xiSR - diag(sum(Xi/xi_SR, 2));
+dxi_SR  = exp(k_xi*(1 - RR));
+dxi_SR  = dxi_SR - diag(diag(dxi_SR));
+AA_xiSR = dxi_SR - diag(sum(Xi/xi_SR, 2));
 
 % Derivative with respect to k_xi:
-d_kxi  = (1 - RR).*Xi;
-d_kxi  = d_kxi - diag(diag(d_kxi));
-AA_kxi = d_kxi - diag(sum(d_kxi, 2));
+dk_xi  = (1 - RR).*Xi;
+dk_xi  = dk_xi - diag(diag(dk_xi));
+AA_kxi = dk_xi - diag(sum(dk_xi, 2));
 
 % Calculate birth rate:
-b     = bS*bR./(bR + (bS - bR)*r.^alpha_b);
+b     = b_S*b_R./(b_R + (b_S - b_R)*r.^alpha_b);
  
 % Calculate maximal kill rate:
 d_max = d_maxS*beta_d^alpha_d*(1 - r.^alpha_d)./(beta_d^alpha_d + r.^alpha_d);
 
 % Solve ODEs sensitivity system for each experiment:
-NT         = zeros(nt, nC);
-sens_NT    = zeros(nt, np, nC);
+N_T         = zeros(nt, nC);
+sensN_T    = zeros(nt, np, nC);
 
-d_alpha_d  = zeros(nr,1);
-d_beta_d   = zeros(nr,1);
-d_H_d      = zeros(nr,1);
-d_d_maxS   = zeros(nr,1);
-d_EC_50d   = zeros(nr,1);
+dalpha_d  = zeros(nr,1);
+dbeta_d   = zeros(nr,1);
+dH_d      = zeros(nr,1);
+dd_maxS   = zeros(nr,1);
+dEC_50d   = zeros(nr,1);
 
 for iexp = 1:nC
     
@@ -125,49 +138,49 @@ for iexp = 1:nC
     % Calculate derivatives of the coefficient matrix:
     
      % Derivative of A with respect to d_maxS:
-    d_d_maxS(1)  = 1;
-    d_d_maxS(nr) = 0;
-    d_d_maxS(2:(nr - 1)) = beta_d^alpha_d*(1 - r(2:(nr - 1)).^alpha_d)./(beta_d^alpha_d + r(2:(nr - 1)).^alpha_d);
+    dd_maxS(1)  = 1;
+    dd_maxS(nr) = 0;
+    dd_maxS(2:(nr - 1)) = beta_d^alpha_d*(1 - r(2:(nr - 1)).^alpha_d)./(beta_d^alpha_d + r(2:(nr - 1)).^alpha_d);
 
-    d_d_maxS  = - HC*d_d_maxS;
+    dd_maxS  = - HC*dd_maxS;
 
-    AA_dmaxS = diag(d_d_maxS);
+    AA_dmaxS = diag(dd_maxS);
     
     % Derivative with respect to alph_d:
-    d_alpha_d(1)  = 0;
-    d_alpha_d(nr) = 0;
-    d_alpha_d(2:(nr -1)) = beta_d^alpha_d*d_maxS*r(2:(nr -1)).^alpha_d.*((1 + beta_d^alpha_d)*log(r(2:(nr - 1))) + (r(2:(nr -1)).^alpha_d - 1)*log(beta_d))./(r(2:(nr -1)).^alpha_d + beta_d^alpha_d).^2;
+    dalpha_d(1)  = 0;
+    dalpha_d(nr) = 0;
+    dalpha_d(2:(nr -1)) = beta_d^alpha_d*d_maxS*r(2:(nr -1)).^alpha_d.*((1 + beta_d^alpha_d)*log(r(2:(nr - 1))) + (r(2:(nr -1)).^alpha_d - 1)*log(beta_d))./(r(2:(nr -1)).^alpha_d + beta_d^alpha_d).^2;
 
-    d_alpha_d  = HC*d_alpha_d;
+    dalpha_d  = HC*dalpha_d;
 
-    AA_alpha_d = diag(d_alpha_d);
+    AA_alpha_d = diag(dalpha_d);
     
     % Derivative with respect to beta_d:
-    d_beta_d(1)  = 0;
-    d_beta_d(nr) = 0;
-    d_beta_d(2:(nr -1)) =  alpha_d*beta_d^(alpha_d - 1)*d_maxS*(r(2:(nr -1)).^alpha_d - 1).*r(2:(nr -1)).^alpha_d./(beta_d^alpha_d + r(2:(nr -1)).^alpha_d).^2;
+    dbeta_d(1)  = 0;
+    dbeta_d(nr) = 0;
+    dbeta_d(2:(nr -1)) =  alpha_d*beta_d^(alpha_d - 1)*d_maxS*(r(2:(nr -1)).^alpha_d - 1).*r(2:(nr -1)).^alpha_d./(beta_d^alpha_d + r(2:(nr -1)).^alpha_d).^2;
 
-    d_beta_d  = HC*d_beta_d;
+    dbeta_d  = HC*dbeta_d;
     
-    AA_beta_d = diag(d_beta_d);
+    AA_beta_d = diag(dbeta_d);
 
     % Derivative with respect to EC50k:
-    d_EC_50d(nr)         = 0;
-    d_EC_50d(1:(nr - 1)) = - EC_50d^(H_d - 1)*H_d*beta_d^alpha_d*d_maxS*(r(1:(nr -1)).^alpha_d - 1)./(r(1:(nr -1)).^alpha_d + beta_d^alpha_d);
-    d_EC_50d             = HC^2*d_EC_50d;
+    dEC_50d(nr)         = 0;
+    dEC_50d(1:(nr - 1)) = - EC_50d^(H_d - 1)*H_d*beta_d^alpha_d*d_maxS*(r(1:(nr -1)).^alpha_d - 1)./(r(1:(nr -1)).^alpha_d + beta_d^alpha_d);
+    dEC_50d             = HC^2*dEC_50d;
 
-    AA_EC_50d            = diag(d_EC_50d);
+    AA_EC_50d            = diag(dEC_50d);
 
     % Derivative with respect to Hk:
     if CC > 0
-        d_H_d(1:(nr -1)) = EC_50d^H_d*beta_d^alpha_d*d_maxS*(log(CC) - log(EC_50d))*(r(1:(nr -1)).^alpha_d - 1)./(r(1:(nr -1)).^alpha_d + beta_d^alpha_d);
-        d_H_d(nr)        = 0;
-        d_H_d            = HC^2*d_H_d;
+        dH_d(1:(nr -1)) = EC_50d^H_d*beta_d^alpha_d*d_maxS*(log(CC) - log(EC_50d))*(r(1:(nr -1)).^alpha_d - 1)./(r(1:(nr -1)).^alpha_d + beta_d^alpha_d);
+        dH_d(nr)        = 0;
+        dH_d            = HC^2*dH_d;
     else
-        d_H_d(1:nr)      = 0;
+        dH_d(1:nr)      = 0;
     end
     
-    AA_H_d               = diag(d_H_d);
+    AA_H_d               = diag(dH_d);
     
     %-------------------------------------------------%
     % Calculate output sensitivities:
@@ -176,7 +189,7 @@ for iexp = 1:nC
    
     % Total population:
     N              = St_sens(1:nt, 1:nr);
-    NT(1:nt, iexp) = sum(N, 2);
+    N_T(1:nt, iexp) = sum(N, 2);
       
     % Sensitivities of the states:
     sensN_bS        = St_sens(1:nt,nr + 1:2*nr);
@@ -193,18 +206,18 @@ for iexp = 1:nC
     sensN_lambda_T0 = St_sens(1:nt,12*nr + 1:13*nr);
     
     % Sensitivity of the total population:
-    sens_NT(1:nt, 1, iexp)  = sum(sensN_bS, 2);
-    sens_NT(1:nt, 2, iexp)  = sum(sensN_bR, 2);
-    sens_NT(1:nt, 3, iexp)  = sum(sensN_alpha_b, 2);
-    sens_NT(1:nt, 4, iexp)  = sum(sensN_d_maxS, 2);
-    sens_NT(1:nt, 5, iexp)  = sum(sensN_alpha_d, 2);
-    sens_NT(1:nt, 6, iexp)  = sum(sensN_beta_d, 2);
-    sens_NT(1:nt, 7, iexp)  = sum(sensN_EC_50d, 2);
-    sens_NT(1:nt, 8, iexp)  = sum(sensN_H_d, 2);
-    sens_NT(1:nt, 9, iexp)  = sum(sensN_xiSR, 2);
-    sens_NT(1:nt, 10, iexp) = sum(sensN_kxi, 2);
-    sens_NT(1:nt, 11, iexp) = sum(sensN_NT0, 2);
-    sens_NT(1:nt, 12, iexp) = sum(sensN_lambda_T0, 2);
+    sensN_T(1:nt, 1, iexp)  = sum(sensN_bS, 2);
+    sensN_T(1:nt, 2, iexp)  = sum(sensN_bR, 2);
+    sensN_T(1:nt, 3, iexp)  = sum(sensN_alpha_b, 2);
+    sensN_T(1:nt, 4, iexp)  = sum(sensN_d_maxS, 2);
+    sensN_T(1:nt, 5, iexp)  = sum(sensN_alpha_d, 2);
+    sensN_T(1:nt, 6, iexp)  = sum(sensN_beta_d, 2);
+    sensN_T(1:nt, 7, iexp)  = sum(sensN_EC_50d, 2);
+    sensN_T(1:nt, 8, iexp)  = sum(sensN_H_d, 2);
+    sensN_T(1:nt, 9, iexp)  = sum(sensN_xiSR, 2);
+    sensN_T(1:nt, 10, iexp) = sum(sensN_kxi, 2);
+    sensN_T(1:nt, 11, iexp) = sum(sensN_NT0, 2);
+    sensN_T(1:nt, 12, iexp) = sum(sensN_lambda_T0, 2);
     
 end
 

@@ -1,15 +1,18 @@
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-% System of ODEs for constant input
+% Odes_cte: ODEs for total average counts at constant antimicrobial conc.
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-function dxdt = Odes_cte(tt, xx, AA)
+function dNavedt = Odes_cte(t, Nave, AA)
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-%%% INPUT:
-%%% tt = Time,
-%%% xx = CFUS,
-%%% AA = Coefficient matrix,
+% INPUT:
+% t    = Time,
+% Nave = Total average counts,
+% AA   = Coefficient matrix,
+%
+% OUTPUT:
+% dNavedt = Time derivative of total average counts;
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 % System of ODEs:
-dxdt   = AA*xx;
+dNavedt = AA*Nave;
 
 end

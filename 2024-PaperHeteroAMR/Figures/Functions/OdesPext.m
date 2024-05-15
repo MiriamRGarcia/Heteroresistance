@@ -1,30 +1,41 @@
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-% ODEs to calculate extinction probability (constant concentration)
+% OdesPext: Odes to calculate approximate extinction probability
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-function dzdt = OdesPext(tt, zz, b, d, AA)
+function dzdt = OdesPext(t, z, b, d, AA)
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% INPUT:
+% t    = Time;
+% z    = Auxiliary states;
+% b    = Array of birth rates;
+% d    = Array of death rates;
+% AA   = Coefficient matrix;
+%
+% OUTPUT:
+% dzdt = Time derivative of auxiliary states;
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 % Problem sizes:
 nr = numel(b);
 
 % ----------------------------------------- %
 % Calculate total birth-death-net rates:
-N    = zz(1:nr);
+N    = z(1:nr);
 dNdt = AA*N;
 
-NT   = sum(N);
+N_T  = sum(N);
 
-bT   = b.'*N/NT;
-dT   = d.'*N/NT;
+b_T  = b.'*N/N_T;
+d_T  = d.'*N/N_T;
 
-gT   = bT - dT;
+g_T  = b_T - d_T;
 
 % ---------------------------------------- %
 % ODEs for the extinction probability:
-zrho    = zz(nr + 1);
+zrho    = z(nr + 1);
 
-dzrhodt = - gT;
+dzrhodt = - g_T;
 
-dzdt    = dT*exp(zrho);
+dzdt    = d_T*exp(zrho);
 
 % ---------------------------------------- %
 % Complete system of ODEs:

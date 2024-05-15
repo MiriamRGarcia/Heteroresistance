@@ -1,11 +1,11 @@
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-% System of ODEs for state sensitivities (constant control)
+% OdesSens: System of ODEs for state sensitivities (constant control)
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-function dsdt = OdesSens(tt, ss, AA, AA_bS, AA_bR, AA_alpha_b, AA_dmaxS,...
+function dsdt = OdesSens(t, ss, AA, AA_bS, AA_bR, AA_alpha_b, AA_dmaxS,...
                 AA_alpha_d, AA_beta_d, AA_EC50d, AA_Hd, AA_xiSR, AA_kxi)
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % INPUT :
-% tt       = Time variable,
+% t        = Time variable,
 % ss       = State variables, ss = (N, N_theta),
 % AA       = Coefficient matrix,
 % AA_theta = Derivative of coefficient matrix AA with respect to theta,
@@ -23,20 +23,20 @@ dsdt = AA*N;
 % Odes for sensitivities of the average proces:
 
 % Derivative with respect to bS:
-sbS      = ss((nr + 1):2*nr);
-dsdt     = [dsdt;AA_bS*N + AA*sbS];
+sb_S     = ss((nr + 1):2*nr);
+dsdt     = [dsdt;AA_bS*N + AA*sb_S];
 
 % Derivative with respect to mugR:
-sbR      = ss((2*nr + 1):3*nr);
-dsdt     = [dsdt;AA_bR*N + AA*sbR];
+sb_R     = ss((2*nr + 1):3*nr);
+dsdt     = [dsdt;AA_bR*N + AA*sb_R];
 
 % Derivative with respect to alph_g:
 salpha_b = ss((3*nr + 1:4*nr));
 dsdt     = [dsdt;AA_alpha_b*N + AA*salpha_b];
 
 % Derivative with respect to mukmaxS:
-sdmaxS   = ss((4*nr + 1):5*nr);
-dsdt     = [dsdt;AA_dmaxS*N + AA*sdmaxS];
+sdmax_S  = ss((4*nr + 1):5*nr);
+dsdt     = [dsdt;AA_dmaxS*N + AA*sdmax_S];
 
 % Derivative with respect to alpha_d:
 salpha_d  = ss((5*nr + 1):6*nr);
