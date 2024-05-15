@@ -1,13 +1,20 @@
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-% Plot panel of heteroresistance distribution 
+% MainPanelPDF: Plot panel with heteroresistance distribution
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 clear variables
 close all
+clc
 
 addpath('Functions')
 
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% User-defined options:
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% Number of trajectories:
+Ntraj = 1000;
+
 % Define colors of plot:
-bb = [132,114,68]/256;
+bb   = [132,114,68]/256;
 
 cc1  = [39, 183, 222]/256;
 cc2  = [76,57,87]/256;
@@ -22,89 +29,94 @@ cc10 = [250,163,0]/256;
 
 cc   = [cc1;cc2;cc3;cc4;cc5;cc6;cc7;cc8;cc9;cc10];
 
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-% (1) Load data of Gillespie trajectories:
+% Save figure (=1) or not (=0):
+fig_print = 0;
 
-% Number of trajectories:
-Ntraj = 1000;
+% Format to save figure:
+fig_form  = '-dpng'; %'djpg';
+
+% Set ODE solver precision:
+ODEoptions = odeset('RelTol', 1.0e-6, 'AbsTol', 1.0e-6);
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% End of user-defined settings
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+
+% ----------------------------------------------------------------------- %
+% Load data of Gillespie trajectories:
 
 % Results path:
-path_name = 'C:\Users\Usuario\Desktop\2024-PaperHeteroAMR\SSA\Results';
+file_name = '../SSA/Results/resSSA_001.mat';
 
-% Load experimental setup:
-file_name = 'resGill_001.mat';
-file_name = strcat(path_name, filesep, file_name);
-
-load(file_name, 'rr', 'tmod', 'Cexp', 'par')
+load(file_name, 'r', 'tmod', 'Cexp', 'pars')
 
 % Problem sizes:
-nr    = numel(rr);
-nt    = numel(tmod);
-Nexp  = numel(Cexp);
+nr   = numel(r);
+nt   = numel(tmod);
+Nexp = numel(Cexp);
 
 % Initialise Gillespie trajectories of total cell counts (CFUS/mL):
-CFUST_data = zeros(nt, Nexp, Ntraj);
+N_Tdata = zeros(nt, Nexp, Ntraj);
 
 % Initialise PDF of the AMR level:
-pdf_AMR    = zeros(nt, nr, Nexp);
+pdf_AMR = zeros(nt, nr, Nexp);
 
 % Loop in the trajectories:
 for itraj = 1:Ntraj
 
     % Create file name:
-    file_name = sprintf('resGill_%03u', itraj);
-    file_name = strcat(path_name, filesep, file_name);
-    
-    % Load results file:
-    load(file_name, 'CFUS_exp', 'CFUST_exp')
+    file_name = sprintf('../SSA/Results/resSSA_%03u.mat', itraj);
 
+    % Load results file:
+    load(file_name, 'N', 'N_T')
+    
     % Preprocesing data:
     for iexp = 1:Nexp
         aux       = [0;
-                     CFUST_exp(1:(nt - 1), iexp)];
+                     N_T(1:(nt - 1), iexp)];
                  
-        [rind, ~] = find((CFUST_exp(1:nt, iexp) - aux == 0) & (CFUST_exp(1:nt, iexp) - repmat(CFUST_exp(end, iexp), nt, 1) == 0) & (CFUST_exp(1:nt, iexp) - repmat(max(CFUST_exp(1:nt, iexp)), nt, 1) == 0));
+        [rind, ~] = find((N_T(1:nt, iexp) - aux == 0) & (N_T(1:nt, iexp) - repmat(N_T(end, iexp), nt, 1) == 0) & (N_T(1:nt, iexp) - repmat(max(N_T(1:nt, iexp)), nt, 1) == 0));
         
-        CFUST_exp(rind, iexp)      = NaN;
+        N_T(rind, iexp)     = NaN;
         
-        CFUS_exp(rind, 1:nr, iexp) = NaN;
+        N(rind, 1:nr, iexp) = NaN;
     end
 
     % Almacenate total cell count data:  
-    CFUST_data(1:nt, 1:Nexp, itraj) = CFUST_exp;
+    N_Tdata(1:nt, 1:Nexp, itraj) = N_T;
        
     % Calculate pdf of the AMR level:
-    aux_CFUS     = CFUS_exp;
-    aux_nT_CFUS  = repmat(CFUST_exp, nr, 1);
+    aux_N   = N;
+    aux_N_T = repmat(N_T, nr, 1);
     
-    aux_nT_CFUS  = reshape(aux_nT_CFUS, nt, nr, Nexp);
+    aux_N_T = reshape(aux_N_T, nt, nr, Nexp);
 
-    pdf_AMR(1:nt, 1:nr, 1:Nexp) = pdf_AMR(1:nt, 1:nr, 1:Nexp) + aux_CFUS./aux_nT_CFUS;
+    pdf_AMR(1:nt, 1:nr, 1:Nexp) = pdf_AMR(1:nt, 1:nr, 1:Nexp) + aux_N./aux_N_T;
  
 end
 
 % PDF of the AMR level:
-pdf_AMR = pdf_AMR/Ntraj;
+pdf_AMR     = pdf_AMR/Ntraj;
 
 % Sample average of total cell counts:
-CFUST_ave_data = sum(CFUST_data, 3)/Ntraj;
+N_Tave_data = sum(N_Tdata, 3)/Ntraj;
 
-%%
-close all
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-% (2) Plot heteroresistance distribution at different times and experiments:
+
+% ----------------------------------------------------------------------- %
+% Plot heteroresistance distribution at different times and experiments:
 
 % Experiments to plot:
 Exps     = [4 5 9];
 Nexp_aux = numel(Exps);
 
 % Times to plot (times of intersection between experiments):
-ind45i = find(CFUST_ave_data(:,5) > CFUST_ave_data(:,4), 1);
-ind45f = find(CFUST_ave_data(:,5) > CFUST_ave_data(:,4), 1, 'last');
-ind49i = find(CFUST_ave_data(:,9) > CFUST_ave_data(:,4), 1);
-ind49f = find(CFUST_ave_data(:,9) > CFUST_ave_data(:,4), 1, 'last');
-ind59i = find(CFUST_ave_data(:,9) > CFUST_ave_data(:,5), 1);
-ind59f = find(CFUST_ave_data(:,9) > CFUST_ave_data(:,5), 1, 'last');
+ind45i = find(N_Tave_data(:,5) > N_Tave_data(:,4), 1);
+ind45f = find(N_Tave_data(:,5) > N_Tave_data(:,4), 1, 'last');
+ind49i = find(N_Tave_data(:,9) > N_Tave_data(:,4), 1);
+ind49f = find(N_Tave_data(:,9) > N_Tave_data(:,4), 1, 'last');
+ind59i = find(N_Tave_data(:,9) > N_Tave_data(:,5), 1);
+ind59f = find(N_Tave_data(:,9) > N_Tave_data(:,5), 1, 'last');
 
 tind_pdfAMR = sort([ind49i ind49f ind45i ind45f ind59i ind59f]);
 
@@ -116,8 +128,9 @@ nt_pdfAMR   = numel(tind_pdfAMR);
 
 basestep = 0.15;                                                           % Set step between baselines;
 baseline = zeros(nr, 1) + basestep*(nt_pdfAMR - 1);                        % Set base lines for area plots;
-rtext    = rr([6 8 10 12 14 16]);                                          % x position of text in figure;
+rtext    = r([6 8 10 12 14 16]);                                          % x position of text in figure;
 transp   = [1.0 0.6 0.6];                                                  % Transparency for the area plots;
+xticks   = [0 0.2 0.4 0.6 0.8 1.0];
 
 fig = figure;
 
@@ -147,8 +160,8 @@ for it = 1:nt_pdfAMR
             % Plot distribution:      
             uplim         = pdf_AMR(indt, 1:nr, iexp).' + lowlim;
     
-            coord_up      = [rr, uplim];
-            coord_low     = [rr, lowlim];
+            coord_up      = [r, uplim];
+            coord_low     = [r, lowlim];
     
             coord_combine = [coord_up;flipud(coord_low)];
             
@@ -183,56 +196,52 @@ xlabel('$r$', 'Interpreter', 'Latex','FontSize', 12)
 %ylabel('Subpopulation frequency', 'Interpreter', 'Latex','FontSize', 12)
 ylim([0 0.9])
 
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-% (3) Plot of deterministic VS stochastic heteroresistance distribution:
-
 % ----------------------------------------------------------------------- %
+% Plot of deterministic VS stochastic heteroresistance distribution:
+
 % Calculate deterministic average:
 
-% Set ODE solver precision:
-ODEoptions = odeset('RelTol', 1.0e-6, 'AbsTol', 1.0e-6);
-
 % Obtain parameter values:
-bS        = par(1);
-bR        = par(2);
-alpha_b   = par(3);
+b_S       = pars(1);
+b_R       = pars(2);
+alpha_b   = pars(3);
 
-d_maxS    = par(4);
-beta_d    = par(5);
-alpha_d   = par(6);
+d_maxS    = pars(4);
+beta_d    = pars(5);
+alpha_d   = pars(6);
 
-EC_50d    = par(7);
-H_d       = par(8);
+EC_50d    = pars(7);
+H_d       = pars(8);
 
-xi_SR     = par(9);
-k_xi      = par(10);
+xi_SR     = pars(9);
+k_xi      = pars(10);
     
-N_T0      = par(11);
-lambda_T0 = par(12);
+N_T0      = pars(11);
+lambda_T0 = pars(12);
 
 % Initial condition:
-f0  = exp(-lambda_T0*rr);
-f0  = f0/sum(f0);
-N0  = N_T0*f0;
+f_0  = exp(-lambda_T0*r);
+f_0  = f_0/sum(f_0);
+N_0  = N_T0*f_0;
 
 % Initialice population sizes:
-CFUS_mod  = zeros(nt, nr, Nexp);
-CFUST_mod = zeros(nt, Nexp);
+Nmod  = zeros(nt, nr, Nexp);
+N_Tmod = zeros(nt, Nexp);
 
 % Initialise coefficient matrix:
-RR = repmat(rr, 1, nr) - repmat(rr.', nr, 1);                      
-RR = RR - triu(RR) + tril(RR).';
+R  = repmat(r, 1, nr) - repmat(r.', nr, 1);                      
+R  = R - triu(R) + tril(R).';
 
-Xi = xi_SR*exp(k_xi*(1 - RR));
+Xi = xi_SR*exp(k_xi*(1 - R));
 Xi = Xi - diag(diag(Xi));
 
 AA_aux = Xi.' - diag(sum(Xi, 2));
 
 % Calculate growth rate at current time:
-b = bS*bR./(bR + rr.^alpha_b*(bS - bR));
+b = b_S*b_R./(b_R + r.^alpha_b*(b_S - b_R));
 
 % Calculate kill rate at current time:
-d_max = d_maxS*beta_d^alpha_d*(1 - rr.^alpha_d)./(beta_d^alpha_d + rr.^alpha_d);
+d_max = d_maxS*beta_d^alpha_d*(1 - r.^alpha_d)./(beta_d^alpha_d + r.^alpha_d);
 
 for iexp = 1:Nexp
     
@@ -250,12 +259,12 @@ for iexp = 1:Nexp
     
     %-------------------------------------------------%
     % Call to ODEs:
-    [~, xout] = ode15s(@(t, s) Odes_cte(t, s, AA), tmod, N0, ODEoptions);
+    [~, xout] = ode15s(@(t, s) Odes_cte(t, s, AA), tmod, N_0, ODEoptions);
     
     %-------------------------------------------------%
     % Almacenate cell numbers for current antimicrobial concentration:
-    CFUS_mod(1:nt, 1:nr, iexp) = xout;
-    CFUST_mod(1:nt, iexp)      = sum(xout, 2);
+    Nmod(1:nt, 1:nr, iexp) = xout;
+    N_Tmod(1:nt, iexp)     = sum(xout, 2);
 
 end
 
@@ -283,8 +292,8 @@ cccaux(2,:) = [233,144,20]/256;
 plot_count  = 1;
 
 clear rtext
-rtext{1}    = rr([6 8 10 12 14 16]);
-rtext{2}    = rr([6 8 10 12 14 16]);
+rtext{1}    = r([6 8 10 12 14 16]);
+rtext{2}    = r([6 8 10 12 14 16]);
 
 for it = 1:nt_pdfAMR
     
@@ -303,8 +312,8 @@ for it = 1:nt_pdfAMR
             % Plot real distribution:      
             uplim         = pdf_AMR(indt, 1:nr, iexp).' + lowlim;
     
-            coord_up      = [rr, uplim];
-            coord_low     = [rr, lowlim];
+            coord_up      = [r, uplim];
+            coord_low     = [r, lowlim];
     
             coord_combine = [coord_up;flipud(coord_low)];
             
@@ -316,9 +325,9 @@ for it = 1:nt_pdfAMR
             
             % ----------------------------------------------- %
             % Plot model distribution:      
-            uplim         = CFUS_mod(indt, 1:nr, iexp).'/CFUST_mod(indt, iexp) + lowlim;
+            uplim         = Nmod(indt, 1:nr, iexp).'/N_Tmod(indt, iexp) + lowlim;
             
-            coord_up      = [rr, uplim];
+            coord_up      = [r, uplim];
     
             coord_combine = [coord_up;flipud(coord_low)];
             
@@ -397,7 +406,9 @@ ss.GridAlpha     = 0.3;
 % ylim([0 0.7])
 
 
-print('-r720', 'PanelAMRlevelHD', '-dpng')
+if fig_print == 1
+    print('-r720','PanelPDF', fig_form)
+end
 
 
 

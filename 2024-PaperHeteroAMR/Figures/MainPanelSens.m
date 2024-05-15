@@ -1,5 +1,5 @@
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-% Main file for plot state sensitivities
+% MainPanelSens: Main file to generate panel of parameter sensitivities
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 clear variables
 close all
@@ -7,16 +7,20 @@ close all
 addpath('Functions')
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-% (1) Define experimental setting:
-
-% ------------------------------------------ %
+% User-defined settings:
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % Set precision to solve ODEs:
 ODEoptions = odeset('RelTol', 1.0e-6, 'AbsTol', 1.0e-6);
 
-% ------------------------------------------ %
+% Save figure (=1) or not (=0):
+fig_print = 0;
+
+% Format to save figure:
+fig_form  = '-dpng'; %'djpg';
+
 % Parameter values:
-bS        = 0.63;
-bR        = 0.36;
+b_S       = 0.63;
+b_R       = 0.36;
 alpha_b   = 2;
 
 d_maxS    = 3.78;
@@ -32,11 +36,10 @@ k_xi      = log(1e2);
 N_T0      = 1e6;
 lambda_T0 = 50;
 
-par       = [bS;bR;alpha_b;d_maxS;alpha_d;beta_d;EC_50d;H_d;xi_SR;k_xi;N_T0;lambda_T0];
+pars      = [b_S;b_R;alpha_b;d_maxS;alpha_d;beta_d;EC_50d;H_d;xi_SR;k_xi;N_T0;lambda_T0];
     
-np        = numel(par);
+np        = numel(pars);
 
-% ------------------------------------------ %
 % Time discretisation:
 t0        = 0; 
 tf        = 48;       
@@ -44,43 +47,37 @@ ht        = 1e-2;
 tmod      = t0:ht:tf;        
 nt        = numel(tmod);    
 
-% ------------------------------------------ %
 % Discretisation of the AMR level:
 ra        = 0;
 rb        = 1;
 nr        = 50;
 r         = linspace(ra, rb, nr).';
 
-% ------------------------------------------ %
-% Antimicrobial concentration:
-MIC_S     = EC_50d*(bS/(d_maxS - bS))^(1/H_d);
+% Antimicrobial concentrations (constant for each experiment):
+MIC_S     = EC_50d*(b_S/(d_maxS - b_S))^(1/H_d);
 C         = MIC_S*linspace(0, 8, 100);
 nC        = numel(C);
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-% (2) Calculate sensitivities:
+% End of user-defined settings
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-% ------------------------------------------ %
 % Initial population size:
 f0 = exp(-lambda_T0*r);
 f0 = f0/sum(f0);
 N0 = floor(N_T0*f0);
 
-% ------------------------------------------ %
+% ----------------------------------------------------------------------- %
 % Call to function calculating sensitivities:
-[NT, sens_NT] = SensMultiExp(tmod, r, C, par, N0, ODEoptions);
+[NT, sens_NT] = SensMultiExp(tmod, r, C, pars, N0, ODEoptions);
 
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-% (3) Plot sensitivities:
+% ----------------------------------------------------------------------- %
+% Plot sensitivities:
 
-% ------------------------------------------ %
 % Define parameter names:
 name_pars = {'$b_S$','$b_R$','$\alpha_b$','$d_{maxS}$','$\alpha_d$',...
              '$\beta_d$','$EC_{50d}$','$H_d$','$\xi_{SR}$','$k_{\xi}$','$N_{T0}$','$\lambda_{T0}$'};
 
-
-% ------------------------------------------ %
-% Figure:
 
 fig = figure;
 
@@ -97,7 +94,7 @@ for ip = 1:np
     % ------------------------------------------ %
     % Calculate normalised sensitivities:
     sens_aux    = reshape(sens_NT(1:nt, ip, 1:nC), nt, nC);
-    sc_sens_aux = par(ip)*sens_aux./NT;
+    sc_sens_aux = pars(ip)*sens_aux./NT;
     
     % ------------------------------------------ %
     % Absolute value:
@@ -157,9 +154,11 @@ Xlb  = mean(Xlim);
 xlabel(han,{'','Time (h)'}, 'Interpreter','Latex','FontSize', 16, 'Position',[Xlb-0.03 -0.07],'HorizontalAlignment','center')
 ylabel(han,{'$C$ (mg/L)',''}, 'Interpreter','Latex','FontSize', 16);
 
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-% (4) Print figure if desired:
-print('-r720','PanelSensHD', '-dpng')
+% ----------------------------------------------------------------------- %
+% Print figure if desired:
+if fig_print == 1
+    print('-r720','PanelSens', fig_form)
+end
 
 
 rmpath('Functions')
