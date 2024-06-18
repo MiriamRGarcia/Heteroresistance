@@ -53,7 +53,7 @@ Xi  = xi_SR*exp(k_xi*(1 - RR));
 Xi  = Xi - diag(diag(Xi));
 
 % Birth rate:
-b     = b_R*b_R./(b_R + r.^alpha_b*(b_S - b_R));            
+b     = b_S*b_R./(b_R + r.^alpha_b*(b_S - b_R));            
 
 % Maximal death rate:
 d_max = d_maxS*beta_d^alpha_d*(1 - r.^alpha_d)./(beta_d^alpha_d + r.^alpha_d);                                                    
