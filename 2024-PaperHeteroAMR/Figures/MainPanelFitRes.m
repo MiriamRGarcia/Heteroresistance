@@ -12,10 +12,13 @@ addpath('Functions')
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 % Number of trajectories in the calibration problem:
-Ntraj = 3;
+m_traj = 3;
+
+% Method to generate BD trajectories:
+method = 'RSSA'; % 'SSA'; 'RSSA';
 
 % Low detection limit:
-LDL   = 10;
+LDL    = 10;
 
 % Set ODE solver precision:
 ODEoptions = odeset('RelTol', 1.0e-6, 'AbsTol', 1.0e-6);
@@ -47,12 +50,12 @@ mks{5} = '>';
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 % Load common experimental setup:
-file_name = sprintf('../PE/Results/resPE_MNHo_%utraj.mat', Ntraj);
+file_name = sprintf('../PE/Results/resPE_MNHo_%utraj.mat', m_traj);
 load(file_name, 'tmod', 'texp', 'r', 'Cexp')
 
-nr       = numel(r);
-nt       = numel(tmod);
-Nexp     = numel(Cexp);
+m_r = numel(r);
+m_t = numel(tmod);
+m_e = numel(Cexp);
 
 texp_ind = find(ismember(tmod, texp));
 ntexp    = numel(texp_ind);
@@ -60,7 +63,7 @@ ntexp    = numel(texp_ind);
 
 % ----------------------------------------------------------------------- %
 % First subplot (MNHo case):
-file_name = sprintf('../PE/Results/resPE_MNHo_%utraj.mat', Ntraj);
+file_name = sprintf('../PE/Results/resPE_MNHo_%utraj.mat', m_traj);
 
 load(file_name, 'pars', 'seed', 'sd')
 
@@ -85,10 +88,10 @@ f_0 = f_0/sum(f_0);
 N_0 = N_T0*f_0;
 
 
-N_T = zeros(nt, Nexp);
+N_T = zeros(m_t, m_e);
 
 
-R  = repmat(r, 1, nr) - repmat(r.', nr, 1);                                % Modification rates matrix;                 
+R  = repmat(r, 1, m_r) - repmat(r.', m_r, 1);                                % Modification rates matrix;                 
 R  = R - triu(R) + tril(R).';   
 Xi = xi_SR*exp(k_xi*(1 - R));
 Xi = Xi - diag(diag(Xi));
@@ -100,7 +103,7 @@ AA_aux = Xi' - diag(sum(Xi, 2));                                           % Aux
 b     = b_S*b_R./(b_R + r.^alpha_b*(b_S - b_R));                           % Birth and maximal kill rates;
 d_max = d_maxS*beta_d^alpha_d*(1 - r.^alpha_d)./(beta_d^alpha_d + r.^alpha_d);
 
-for iexp = 1:Nexp
+for iexp = 1:m_e
     
     %-------------------------------------------------%
     % Calculate coefficient matrix of the state system:
@@ -120,15 +123,15 @@ for iexp = 1:Nexp
     [~, xout] = ode15s(@(t,s) Odes_cte(t, s, AA), tmod, N_0, ODEoptions);
    
     % Total population:
-    N_T(1:nt, iexp) = sum(xout, 2);
+    N_T(1:m_t, iexp) = sum(xout, 2);
  
 end
 
 % Trajectories with homoscedastic normal noise:
-N_Tdata = zeros(nt, Nexp, Ntraj);
+N_Tdata = zeros(m_t, m_e, m_traj);
 
-for itraj = 1:Ntraj
-    N_Tdata(1:nt, 1:Nexp, itraj) = log10(N_T(1:nt, 1:Nexp)) + sd*randn(nt, Nexp);
+for itraj = 1:m_traj
+    N_Tdata(1:m_t, 1:m_e, itraj) = log10(N_T(1:m_t, 1:m_e)) + sd*randn(m_t, m_e);
 end
 
 % Load fit results:
@@ -167,10 +170,10 @@ b = b_S*b_R./(b_R + r.^alpha_b*(b_S - b_R));
 d_max = d_maxS*beta_d^alpha_d*(1 - r.^alpha_d)./(beta_d^alpha_d + r.^alpha_d);
 
 % Initialice total population size:
-N_Tmod = zeros(nt, Nexp);
+N_Tmod = zeros(m_t, m_e);
 
 % Initialise legend:
-lgd = cell(Nexp, 1);
+lgd = cell(m_e, 1);
 
 % Figure:
 fig = figure;
@@ -178,7 +181,7 @@ fig = figure;
 set(gcf,'color','w');
 
 transp    = [0.3 0.5 0.7];
-ind_tplot = 1:1000:nt;
+ind_tplot = 1:1000:m_t;
 
 N_Tdata(N_Tdata < log10(LDL)) = log10(LDL);
 
@@ -187,7 +190,7 @@ subplot(1, 3, 1)
 
 hold on
 
-for iexp = 1:Nexp
+for iexp = 1:m_e
     
     %-------------------------------------------------%
     % Calculate coefficient matrix of the state system:
@@ -207,14 +210,14 @@ for iexp = 1:Nexp
     [~, xout] = ode15s(@(t,s) Odes_cte(t, s, AA), tmod, N_0, ODEoptions);
    
     % Total population:
-    N_Tmod(1:nt, iexp) = log10(sum(xout, 2));
+    N_Tmod(1:m_t, iexp) = log10(sum(xout, 2));
     
     
-    for itraj = 1:Ntraj
+    for itraj = 1:m_traj
         plot(tmod(ind_tplot), N_Tdata(ind_tplot, iexp, itraj), 'Color', [cc(iexp,:) transp(itraj)], 'HandleVisibility', 'off')
     end
     
-    plot(tmod, N_Tmod(1:nt, iexp), 'Color', cc(iexp, :),'LineWidth', 2)
+    plot(tmod, N_Tmod(1:m_t, iexp), 'Color', cc(iexp, :),'LineWidth', 2)
     
     plot(texp, N_Tave_data(1:ntexp, iexp), mks{iexp}, 'Color', cc(iexp,:),'MarkerSize', 10, 'MarkerFaceColor', cc(iexp,:), 'HandleVisibility', 'off')
     
@@ -222,7 +225,7 @@ for iexp = 1:Nexp
 
 end
 
-plot(tmod, log10(LDL)*ones(nt, 1), '--', 'Color', 'k', 'LineWidth', 1.5)
+plot(tmod, log10(LDL)*ones(m_t, 1), '--', 'Color', 'k', 'LineWidth', 1.5)
 text(11, log10(LDL) - 0.5, 'LDL', 'Interpreter', 'Latex', 'FontSize', 17)
 
 set(gca, 'FontSize', 15, 'TickLabelInterpreter', 'Latex', 'XTick', [0 12 24 36 48])
@@ -242,7 +245,7 @@ box off
 
 % ----------------------------------------------------------------------- %
 % Second subplot (MNHe case):
-file_name = sprintf('../PE/Results/resPE_MNHe_%utraj.mat', Ntraj);
+file_name = sprintf('../PE/Results/resPE_MNHe_%utraj.mat', m_traj);
 
 load(file_name, 'pars_opt', 'pars_var', 'N_Tave_data', 'seed')
 
@@ -254,17 +257,17 @@ rng(seed)
 var_a = pars_var(1);
 var_b = pars_var(2);
 
-N_Tdata = zeros(nt, Nexp, Ntraj);
+N_Tdata = zeros(m_t, m_e, m_traj);
 
 % Heterocedastic variance of trajectories:
-vartraj      = var_a*N_T(1:nt, 1:Nexp).^var_b;
+vartraj      = var_a*N_T(1:m_t, 1:m_e).^var_b;
 
- for itraj = 1:Ntraj    
-     aux = N_T(1:nt, 1:Nexp) + sqrt(vartraj).*randn(nt, Nexp);
+ for itraj = 1:m_traj    
+     aux = N_T(1:m_t, 1:m_e) + sqrt(vartraj).*randn(m_t, m_e);
      
      aux(aux < LDL) = LDL;
      
-     N_Tdata(1:nt, 1:Nexp, itraj) = log10(aux);
+     N_Tdata(1:m_t, 1:m_e, itraj) = log10(aux);
  end
  
 % Obtain optimal parameter values to plot model fit:
@@ -300,15 +303,15 @@ b = b_S*b_R./(b_R + r.^alpha_b*(b_S - b_R));
 d_max = d_maxS*beta_d^alpha_d*(1 - r.^alpha_d)./(beta_d^alpha_d + r.^alpha_d);
 
 % Initialice total population size:
-N_Tmod = zeros(nt, Nexp);
+N_Tmod = zeros(m_t, m_e);
 
-ind_tplot = 1:1000:nt;
+ind_tplot = 1:1000:m_t;
 
 subplot(1, 3, 2)
 
 hold on
     
-for iexp = 1:Nexp
+for iexp = 1:m_e
     
     %-------------------------------------------------%
     % Calculate coefficient matrix of the state system:
@@ -328,18 +331,18 @@ for iexp = 1:Nexp
     [~, xout] = ode15s(@(t,s) Odes_cte(t, s, AA), tmod, N_0, ODEoptions);
     
     % Total population:
-    N_Tmod(1:nt, iexp) = log10(sum(xout, 2));
+    N_Tmod(1:m_t, iexp) = log10(sum(xout, 2));
     
-    for itraj = 1:Ntraj
+    for itraj = 1:m_traj
         plot(tmod(ind_tplot), N_Tdata(ind_tplot, iexp, itraj), 'Color', [cc(iexp,:) transp(itraj)], 'HandleVisibility', 'off')
     end
     
-     plot(tmod, N_Tmod(1:nt,iexp), 'Color', cc(iexp, :),'LineWidth', 2)
+     plot(tmod, N_Tmod(1:m_t,iexp), 'Color', cc(iexp, :),'LineWidth', 2)
      plot(texp, N_Tave_data(1:ntexp, iexp), mks{iexp}, 'Color', cc(iexp,:),'MarkerSize', 10, 'MarkerFaceColor', cc(iexp,:), 'HandleVisibility', 'off')
 
 end
 
-plot(tmod, log10(LDL)*ones(nt, 1), '--', 'Color', 'k', 'LineWidth', 1.5)
+plot(tmod, log10(LDL)*ones(m_t, 1), '--', 'Color', 'k', 'LineWidth', 1.5)
 text(11, log10(LDL) - 0.5, 'LDL', 'Interpreter', 'Latex', 'FontSize', 17)
 
 xlim([0 48])
@@ -355,16 +358,16 @@ box off
 
 % ----------------------------------------------------------------------- %
 % Third subplot (PN case):
-file_name = sprintf('../PE/Results/resPE_PN_%utraj.mat', Ntraj);
+file_name = sprintf('../PE/Results/resPE_PN_%utraj.mat', m_traj);
 
 load(file_name, 'pars_opt', 'N_Tave_data', 'itraj')
 
 count = 1;
 for ii = itraj
-    file_name = sprintf('../SSA/Results/resSSA_%03u.mat', ii);
+    file_name = sprintf('../SSA/Results/res%s_%03u', method, ii);
     load(file_name, 'N_T')
     
-    N_Tdata(1:nt, 1:Nexp, count) = N_T(1:nt, 1:Nexp);    
+    N_Tdata(1:m_t, 1:m_e, count) = N_T(1:m_t, 1:m_e);    
     count = count + 1;
 end
 
@@ -392,7 +395,7 @@ f_0  = f_0/sum(f_0);
 N_0  = N_T0*f_0;
 
 % Initialice total population size:
-N_Tmod = zeros(nt, Nexp);
+N_Tmod = zeros(m_t, m_e);
 
 % Mutation rates matrix:
 Xi = xi_SR*exp(k_xi*(1 - R));
@@ -409,7 +412,7 @@ d_max = d_maxS*beta_d^alpha_d*(1 - r.^alpha_d)./(beta_d^alpha_d + r.^alpha_d);
 % ----------------------------------------------------------------------- %
 % Plot fit results with process noise:
 
-ind_tplot = 1:nt;
+ind_tplot = 1:m_t;
 
 transp = [0.6 0.6 0.6];
 
@@ -417,7 +420,7 @@ subplot(1, 3, 3)
 
 hold on
 
-for iexp = 1:Nexp
+for iexp = 1:m_e
     
     %-------------------------------------------------%
     % Calculate coefficient matrix of the state system:
@@ -437,24 +440,24 @@ for iexp = 1:Nexp
     [~, xout] = ode15s(@(t,s) Odes_cte(t, s, AA), tmod, N_0, ODEoptions);
    
     % Total population:
-    N_Tmod(1:nt, iexp) = log10(sum(xout, 2));
+    N_Tmod(1:m_t, iexp) = log10(sum(xout, 2));
     
-    for itraj = 1:Ntraj
+    for itraj = 1:m_traj
         plot(tmod(ind_tplot), N_Tdata(ind_tplot, iexp, itraj), 'Color', [cc(iexp,:) transp(itraj)], 'HandleVisibility', 'off')
     end
     
-    aux = reshape(N_Tdata(1:nt, iexp, 1), nt, 1);
+    aux = reshape(N_Tdata(1:m_t, iexp, 1), m_t, 1);
     
     NaN_ind = find(isnan(aux));
     
     N_Tmod(NaN_ind, iexp) = NaN;
     
-    plot(tmod, N_Tmod(1:nt, iexp), 'Color', cc(iexp, :),'LineWidth', 2)
+    plot(tmod, N_Tmod(1:m_t, iexp), 'Color', cc(iexp, :),'LineWidth', 2)
     
     plot(texp, N_Tave_data(1:ntexp, iexp), mks{iexp}, 'Color', cc(iexp,:),'MarkerSize', 10, 'MarkerFaceColor', cc(iexp,:), 'HandleVisibility', 'off')
 
 end
-plot(tmod, log10(LDL)*ones(nt, 1), '--', 'Color', 'k', 'LineWidth', 1.5)
+plot(tmod, log10(LDL)*ones(m_t, 1), '--', 'Color', 'k', 'LineWidth', 1.5)
 text(11, log10(LDL) - 0.5, 'LDL', 'Interpreter', 'Latex', 'FontSize', 17)
 
 xlim([0 48])
@@ -499,8 +502,8 @@ aux_ind1 = find(texp_ind > indexOfInterest(1), 1 );
 aux_ind2 = find(texp_ind < indexOfInterest(end), 1, 'last');
 
 
-for iexp = 1:Nexp
-    for itraj = 1:Ntraj
+for iexp = 1:m_e
+    for itraj = 1:m_traj
         plot(tmod(indexOfInterest),N_Tdata(indexOfInterest, iexp, itraj), 'Color', [cc(iexp,:) transp(itraj)], 'HandleVisibility', 'off') % plot on new axes
         hold on
         plot(tmod(indexOfInterest),N_Tmod(indexOfInterest, iexp),'Color', cc(iexp,:),'LineWidth', 2, 'HandleVisibility', 'off') % plot on new axes
@@ -529,18 +532,3 @@ set(gcf, 'Position', [136         137        1590         823])
 if fig_print == 1
     print('-r720','PanelFitRes', fig_form)
 end
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
