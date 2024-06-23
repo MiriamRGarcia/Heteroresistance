@@ -8,26 +8,29 @@ addpath('Functions')
 % (1) Load data of Gillespie trajectories:
 
 % Number of trajectories to load:
-Ntraj = 1000;
+m_traj = 1000;
+
+% Choose implementation (direct method = SSA or rejection based = RSSA):
+method = 'RSSA'; % = 'SSA'; = 'RSSA';
 
 % Load experimental setup:
-file_name = '../SSA/Results/resGill_001.mat';
-%load(file_name, 'rr', 'tmod', 'Cexp', 'par', 'N_TL')
-load(file_name, 'rr', 'tmod', 'Cexp', 'par')
+file_name = sprintf('../SSA/Results/res%s_001.mat', method);
+
+load(file_name, 'r', 'tsim', 'Cexp', 'par')
 
 % Problem sizes:
-nr = numel(rr);
-nt = numel(tmod);
-nC = numel(Cexp); 
+m_r = numel(r);
+m_t = numel(tsim);
+m_e = numel(Cexp); 
 
 % Initialise Gillespie trajectories of total cell counts (CFUS/mL):
-CFUST_data = zeros(nt, nC, Ntraj);
+CFUST_data = zeros(m_t, m_e, m_traj);
 
 % Loop in the trajectories:
-for itraj = 1:Ntraj
+for itraj = 1:m_traj
 
     % Create file name:
-    file_name = sprintf('../SSA/Results/resGill_%03u.mat', itraj);
+    file_name = sprintf('../SSA/Results/res%s_%03u.mat', method, itraj);
 
     % Load results file:
     load(file_name, 'CFUS_exp', 'CFUST_exp')
@@ -35,24 +38,24 @@ for itraj = 1:Ntraj
     % Preprocesing data:
     %CFUST_exp(CFUST_exp == N_TL) = NaN;
     
-    for iexp = 1:nC
+    for iexp = 1:m_e
         aux       = [0;
-                     CFUST_exp(1:(nt - 1), iexp)];
+                     CFUST_exp(1:(m_t - 1), iexp)];
                  
-        [rind, ~] = find((CFUST_exp(1:nt, iexp) - aux == 0) & (CFUST_exp(1:nt, iexp) - repmat(CFUST_exp(end, iexp), nt, 1) == 0) & (CFUST_exp(1:nt, iexp) - repmat(max(CFUST_exp(1:nt, iexp)), nt, 1) == 0));
+        [rind, ~] = find((CFUST_exp(1:m_t, iexp) - aux == 0) & (CFUST_exp(1:m_t, iexp) - repmat(CFUST_exp(end, iexp), m_t, 1) == 0) & (CFUST_exp(1:m_t, iexp) - repmat(max(CFUST_exp(1:m_t, iexp)), m_t, 1) == 0));
         
         CFUST_exp(rind, iexp)      = NaN;
         
-        CFUS_exp(rind, 1:nr, iexp) = NaN;
+        CFUS_exp(rind, 1:m_r, iexp) = NaN;
     end
 
     % Almacenate total cell count data:  
-    CFUST_data(1:nt, 1:nC, itraj) = CFUST_exp;
+    CFUST_data(1:m_t, 1:m_e, itraj) = CFUST_exp;
  
 end
 
 % Sample average of total cell counts:
-CFUST_ave_data = sum(CFUST_data, 3)/Ntraj;
+CFUST_ave_data = sum(CFUST_data, 3)/m_traj;
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % (2) Obtain median and inter-quartile range of data:
@@ -86,15 +89,15 @@ N_T0      = par(11);
 lambda_T0 = par(12);
 
 % Initial condition:
-f0  = exp(-lambda_T0*rr);
+f0  = exp(-lambda_T0*r);
 f0  = f0/sum(f0);
 N0  = N_T0*f0;
 
 % Initialice population sizes:
-CFUST_mod = zeros(nt, nC);
+CFUST_mod = zeros(m_t, m_e);
 
 % Initialise coefficient matrix:
-RR = repmat(rr, 1, nr) - repmat(rr.', nr, 1);                      
+RR = repmat(r, 1, m_r) - repmat(r.', m_r, 1);                      
 RR = RR - triu(RR) + tril(RR).';
 
 Xi = xi_SR*exp(k_xi*(1 - RR));
@@ -103,12 +106,12 @@ Xi = Xi - diag(diag(Xi));
 AA_aux = Xi.' - diag(sum(Xi, 2));
 
 % Calculate growth rate at current time:
-b = bS*bR./(bR + rr.^alpha_b*(bS - bR));
+b = bS*bR./(bR + r.^alpha_b*(bS - bR));
 
 % Calculate kill rate at current time:
-d_max = d_maxS*beta_d^alpha_d*(1 - rr.^alpha_d)./(beta_d^alpha_d + rr.^alpha_d);
+d_max = d_maxS*beta_d^alpha_d*(1 - r.^alpha_d)./(beta_d^alpha_d + r.^alpha_d);
 
-for iexp = 1:nC
+for iexp = 1:m_e
     
     %-------------------------------------------------%
     % Calculate coefficient matrix of the state system:
@@ -124,11 +127,11 @@ for iexp = 1:nC
     
     %-------------------------------------------------%
     % Call to ODEs:
-    [~, xout] = ode15s(@(t, s) Odes_cte(t, s, AA), tmod, N0, ODEoptions);
+    [~, xout] = ode15s(@(t, s) Odes_cte(t, s, AA), tsim, N0, ODEoptions);
     
     %-------------------------------------------------%
     % Almacenate cell numbers for current antimicrobial concentration:
-    CFUST_mod(1:nt, iexp)      = sum(xout, 2);
+    CFUST_mod(1:m_t, iexp)      = sum(xout, 2);
 
 end
 
@@ -184,13 +187,13 @@ b_plot = bS*bR./(bR + rr_plot.^alpha_b*(bS - bR));
 ss = subplot(2, 3, 1);
 hold on
 plot(rr_plot, b_plot, 'Color', bb5, 'LineWidth', 1.5)
-plot(rr, bS*ones(nr, 1), 'LineStyle', '--', 'Color', 'k', 'LineWidth', 1.5)
-plot(rr, bR*ones(nr, 1), 'LineStyle', '--', 'Color', 'k', 'LineWidth', 1.5)
+plot(r, bS*ones(m_r, 1), 'LineStyle', '--', 'Color', 'k', 'LineWidth', 1.5)
+plot(r, bR*ones(m_r, 1), 'LineStyle', '--', 'Color', 'k', 'LineWidth', 1.5)
 text(0.1, bS + 0.02, '$b_S$', 'Interpreter', 'Latex', 'FontSize', 17)
 text(0.1, bR + 0.02, '$b_R$', 'Interpreter', 'Latex', 'FontSize', 17)
 
 rr_max = (bR*(alpha_b - 1)/((alpha_b + 1)*(bS - bR)))^(1/alpha_b);
-plot(rr_max*ones(nr, 1), linspace(bR, bS, nr), 'LineStyle', '--', 'Color', 'k', 'LineWidth', 1.5)
+plot(rr_max*ones(m_r, 1), linspace(bR, bS, m_r), 'LineStyle', '--', 'Color', 'k', 'LineWidth', 1.5)
 ttb = text(rr_max, 0.32, '$r_b$', 'Interpreter', 'Latex', 'FontSize', 17);
 ttb.Position = [0.661498708010336 0.333680781758958 0];
 
@@ -219,11 +222,11 @@ for iexp = Exps
     d_plot = dmax_plot.*HC;
     plot(rr_plot, d_plot, 'Color', cc(iexp, :), 'LineWidth', 1.5)
 end
-plot(rr, d_maxS*ones(nr, 1), 'LineStyle', '--', 'Color', 'k', 'LineWidth', 1.5)
+plot(r, d_maxS*ones(m_r, 1), 'LineStyle', '--', 'Color', 'k', 'LineWidth', 1.5)
 text(0.1, d_maxS + 0.3, '$d_{maxS}$', 'Interpreter', 'Latex', 'FontSize', 17)
 
 rr_max = ((alpha_d - 1)*beta_d^alpha_d/(alpha_d + 1))^(1/alpha_d);
-plot(rr_max*ones(nr, 1), linspace(0, d_maxS, nr), 'LineStyle', '--', 'Color', 'k', 'LineWidth', 1.5)
+plot(rr_max*ones(m_r, 1), linspace(0, d_maxS, m_r), 'LineStyle', '--', 'Color', 'k', 'LineWidth', 1.5)
 ttk = text(rr_max, -0.1, '$r_d$', 'Interpreter', 'Latex', 'FontSize', 17);
 ttk.Position = [0.286472458455655 -0.217263843648209 0];
 hold off
@@ -258,30 +261,30 @@ MIC_label = [0 1 2 4 8 10 12 16 32];
 
 for iexp = Exps
     
-    NaNind = find(isnan(logCFUST_ave_data(1:nt, iexp)));
+    NaNind = find(isnan(logCFUST_ave_data(1:m_t, iexp)));
     
     % ----------------------------------------------- %
     % Plot model average of data:
     logCFUST_mod(NaNind, iexp) = NaN;
     
-    plot(tmod, logCFUST_mod(1:nt, iexp), 'Color', cc(iexp, :), 'LineWidth', 1.0)
+    plot(tsim, logCFUST_mod(1:m_t, iexp), 'Color', cc(iexp, :), 'LineWidth', 1.0)
     
     % ----------------------------------------------- %
     % Plot average value of trajectories:
-    plot(tmod, logCFUST_ave_data(1:nt, iexp), 'LineStyle', '--', 'Color', cc(iexp, :), 'LineWidth', 1.0, 'HandleVisibility', 'off')
+    plot(tsim, logCFUST_ave_data(1:m_t, iexp), 'LineStyle', '--', 'Color', cc(iexp, :), 'LineWidth', 1.0, 'HandleVisibility', 'off')
 
     % ----------------------------------------------- %
     % Shade area between quartile 0.25 and 0.75:
-    lowlim = logCFUST_data_quarlow(1:nt, iexp);
-    uplim  = logCFUST_data_quarup(1:nt, iexp);
+    lowlim = logCFUST_data_quarlow(1:m_t, iexp);
+    uplim  = logCFUST_data_quarup(1:m_t, iexp);
     
     if numel(NaNind) > 0
         lowlim(NaNind:end) = [];
         uplim(NaNind:end)  = [];
     
-        taux = tmod(1:NaNind - 1);
+        taux = tsim(1:NaNind - 1);
     else
-        taux = tmod;
+        taux = tsim;
     end
     
     coord_up  = [taux.', uplim];
@@ -294,15 +297,15 @@ for iexp = Exps
 
     % ----------------------------------------------- %
     % Maximum an minimum of data without outliers:
-    CFUST_data_aux = reshape(CFUST_data(1:nt, iexp, 1:Ntraj), nt, Ntraj);
-    IQR_aux        = IQR(1:nt, iexp);
-    limlow         = repmat(CFUST_data_quarlow(1:nt, iexp) - 1.5*IQR_aux, 1, Ntraj);
-    limup          = repmat(CFUST_data_quarup(1:nt, iexp)  + 1.5*IQR_aux, 1, Ntraj);
+    CFUST_data_aux = reshape(CFUST_data(1:m_t, iexp, 1:m_traj), m_t, m_traj);
+    IQR_aux        = IQR(1:m_t, iexp);
+    limlow         = repmat(CFUST_data_quarlow(1:m_t, iexp) - 1.5*IQR_aux, 1, m_traj);
+    limup          = repmat(CFUST_data_quarup(1:m_t, iexp)  + 1.5*IQR_aux, 1, m_traj);
     outind         = find(limup < CFUST_data_aux | CFUST_data_aux < limlow);
      
     % ----------------------------------------------- %
     % Scatter plot with data outliers:
-    %taux2 = repmat(tmod.', 1, Ntraj);
+    %taux2 = repmat(tsim.', 1, Ntraj);
     
     %outind_plot = outind(1:10000:end);
     %scatter(taux2(outind_plot), log10(CFUST_data_aux(outind_plot)), [], cc(iexp,:), 'Marker', 'x', 'HandleVisibility', 'off')
@@ -338,7 +341,7 @@ end
 % Low detection limit:
 %LDL = log10(10);
 
-%plot(tmod, LDL*ones(nt,1), 'k', 'LineStyle', '--', 'LineWidth', 1.5)
+%plot(tsim, LDL*ones(nt,1), 'k', 'LineStyle', '--', 'LineWidth', 1.5)
 xlabel('Time (h)', 'Interpreter', 'Latex', 'FontSize', 15)
 ylabel('$N_T$ ($log_{10}$CFUS/mL)', 'Interpreter', 'Latex', 'FontSize', 15)
 
@@ -360,15 +363,15 @@ set(ss, 'TickLabelInterpreter', 'Latex', 'FontSize', 14)
 % (6) Plot extinction probability:
 load(file_name, 'Cexp')
 Cexp = linspace(Cexp(1), Cexp(end-1), 50);
-nC   = numel(Cexp);
-Pext = zeros(nt, nC);
+m_e   = numel(Cexp);
+Pext = zeros(m_t, m_e);
 
 % Initial condition for ODEs:
 z0 = [N0;
       0;
       0];
 
-for iC = 1:nC
+for iC = 1:m_e
     
     %-------------------------------------------------%
     % Calculate coefficient matrix of the state system:
@@ -377,7 +380,7 @@ for iC = 1:nC
     CC = Cexp(iC);
     
     % Calculate kill rate at current time:
-    d_max  = d_maxS*beta_d^alpha_d*(1 - rr.^alpha_d)./(beta_d^alpha_d + rr.^alpha_d);
+    d_max  = d_maxS*beta_d^alpha_d*(1 - r.^alpha_d)./(beta_d^alpha_d + r.^alpha_d);
     HC     = CC^H_d/(CC^H_d + EC_50d^H_d);
     d      = d_max*HC;
 
@@ -385,11 +388,11 @@ for iC = 1:nC
     
     %-------------------------------------------------%
     % Call to ODEs with extinction probability:
-    [~, zout] = ode15s(@(t,s) OdesPext(t, s, b, d, AA), tmod, z0, ODEoptions);
-    zz        = zout(1:nt, nr + 2);
+    [~, zout] = ode15s(@(t,s) OdesPext(t, s, b, d, AA), tsim, z0, ODEoptions);
+    zz        = zout(1:m_t, m_r + 2);
     
     % Extinction probability:
-    Pext(1:nt, iC) = (zz./(1 + zz)).^N_T0;
+    Pext(1:m_t, iC) = (zz./(1 + zz)).^N_T0;
 end
 
 Cticks = 0:0.8:6.4;%[0 0.2 0.8 1.6 6.4];
@@ -397,7 +400,7 @@ Cticks = 0:0.8:6.4;%[0 0.2 0.8 1.6 6.4];
 subplot(1, 3, 3)
 
 % Call to contour plot:
-contourf(tmod, Cexp, Pext.', 50, 'edgecolor', 'none')
+contourf(tsim, Cexp, Pext.', 50, 'edgecolor', 'none')
 
 % Colorbar of subplot:
 CB   = colorbar;
@@ -417,7 +420,7 @@ set(CB, 'TickLabelInterpreter', 'Latex')
 xlabel('Time (h)', 'Interpreter', 'Latex', 'FontSize', 15)
 ylabel('$C$ (mg/L)', 'Interpreter','Latex','FontSize', 15);
 
-xlim([tmod(1) 40])
+xlim([tsim(1) 40])
 ylim([Cexp(1) Cexp(end)])
 
 % Axis properties:
