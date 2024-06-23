@@ -15,7 +15,10 @@ addpath('Results')
 confLev  = 0.9;
 
 % Noise assumption (= 'MNHo'; 'MNHe'; 'PN');
-noise    = 'PN';    
+noise    = 'PN';   
+
+% Choose implementation to generated trajectories (direct method = SSA or rejection based = RSSA):
+method   = 'RSSA'; % = 'SSA'; = 'RSSA';
 
 % Set ODE solver precision:
 ODEoptions = odeset('RelTol', 1.0e-6, 'AbsTol', 1.0e-6);
@@ -61,7 +64,7 @@ else
     t0   = 0;                                                              % Initial simulation time;
     tf   = 48;                                                             % Final simulation time;
     ht   = 1e-3;                                                           % Time step for model simulation (solve ODEs);
-    tmod = t0:ht:tf;                                                       % Times to simulate ODEs;
+    tsim = t0:ht:tf;                                                       % Times to simulate ODEs;
     texp = [2 4 6 8 10 12 16 20 24 36 48];                                 % Sampling times for model calibration;
 
 
@@ -99,25 +102,25 @@ if load_res < 1
     % Load optimal parameters and calibration settings:
     results_name = sprintf('../PE/Results/resPE_%s_%utraj.mat', noise, Ntraj); 
     if strcmp(noise, 'MNHo')
-        load(results_name, 'r', 'tmod', 'Cexp', 'texp', 'pars_opt', 'Weights', 'Var_data', 'sd')
+        load(results_name, 'r', 'tsim', 'Cexp', 'texp', 'pars_opt', 'Weights', 'Var_data', 'sd')
     elseif strcmp(noise, 'MNHe')
-        load(results_name, 'r', 'tmod', 'Cexp', 'texp', 'pars_opt', 'Weights', 'Var_data', 'var_a', 'var_b')
+        load(results_name, 'r', 'tsim', 'Cexp', 'texp', 'pars_opt', 'Weights', 'Var_data', 'var_a', 'var_b')
         pars_opt = pars_opt(1:end-1);
     else
-        load(results_name, 'r', 'tmod', 'Cexp', 'texp', 'pars_opt', 'Weights', 'Var_data')
+        load(results_name, 'r', 'tsim', 'Cexp', 'texp', 'pars_opt', 'Weights', 'Var_data')
     end
     FIM_pars  = pars_opt;
     N_T0      = FIM_pars(end-1);
     lambda_T0 = FIM_pars(end);
 else
-    tmod     = sort(unique([tmod texp])).';   
+    tsim     = sort(unique([tsim texp])).';   
 end
 
-texp_ind = find(ismember(tmod, texp));
+texp_ind = find(ismember(tsim, texp));
 
 % Problem sizes:
 nr    = numel(r);
-nt    = numel(tmod);    
+nt    = numel(tsim);    
 ntexp = numel(texp);
 np    = numel(FIM_pars);
 Nexp  = numel(Cexp);
@@ -134,7 +137,7 @@ f0  = f0/sum(f0);
 N_0 = N_T0*f0;
 
 % Call function to calculate sensitivities:
-[N_T, sensN_T] = SensMultiExp(tmod, r, Cexp, FIM_pars, N_0, ODEoptions);
+[N_T, sensN_T] = SensMultiExp(tsim, r, Cexp, FIM_pars, N_0, ODEoptions);
 
 % ----------------------------------------------------------------------- %
 % Build covariance matrix:
@@ -152,7 +155,7 @@ else
     aux_ii  = 1;
     
     for ii = itraj
-        traj_name = sprintf('../SSA/Results/resSSA_%03u.mat', ii);
+        traj_name = sprintf('../SSA/Results/res%s_%03u.mat', method, ii);
         load(traj_name, 'N_T')
         N_Tdata(1:ntexp, 1:Nexp, aux_ii) = N_T(texp_ind, 1:Nexp);
         aux_ii = aux_ii + 1;
@@ -237,7 +240,7 @@ end
 % ----------------------------------------------------------------------- %
 % Save results:
 res_name = sprintf('Results/resFIM_%s.mat', noise);
-save(res_name, 'r', 'tmod', 'texp', 'Cexp', 'FIM_pars', 'pars_nom', 'CovMatrix', 'FIM', 'FIMConfInt')
+save(res_name, 'r', 'tsim', 'texp', 'Cexp', 'FIM_pars', 'pars_nom', 'CovMatrix', 'FIM', 'FIMConfInt')
 
 rmpath('Functions')
 rmpath('Results')
