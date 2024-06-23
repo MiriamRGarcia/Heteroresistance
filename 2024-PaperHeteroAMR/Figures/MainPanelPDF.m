@@ -10,8 +10,12 @@ addpath('Functions')
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % User-defined options:
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
 % Number of trajectories:
-Ntraj = 1000;
+m_traj = 1000;
+
+% Choose implementation (direct method = SSA or rejection based = RSSA):
+method = 'RSSA'; % = 'SSA'; = 'RSSA';
 
 % Define colors of plot:
 bb   = [132,114,68]/256;
@@ -47,60 +51,48 @@ ODEoptions = odeset('RelTol', 1.0e-6, 'AbsTol', 1.0e-6);
 % Load data of Gillespie trajectories:
 
 % Results path:
-file_name = '../SSA/Results/resSSA_001.mat';
+file_name = fprintf('../SSA/Results/res%s_001.mat', method);
 
 load(file_name, 'r', 'tmod', 'Cexp', 'pars')
 
 % Problem sizes:
-nr   = numel(r);
-nt   = numel(tmod);
-Nexp = numel(Cexp);
+m_r = numel(r);
+m_t = numel(tmod);
+m_e = numel(Cexp);
 
 % Initialise Gillespie trajectories of total cell counts (CFUS/mL):
-N_Tdata = zeros(nt, Nexp, Ntraj);
+N_Tdata = zeros(m_t, m_e, m_traj);
 
 % Initialise PDF of the AMR level:
-pdf_AMR = zeros(nt, nr, Nexp);
+pdf_AMR = zeros(m_t, m_r, m_e);
 
 % Loop in the trajectories:
-for itraj = 1:Ntraj
+for itraj = 1:m_traj
 
     % Create file name:
-    file_name = sprintf('../SSA/Results/resSSA_%03u.mat', itraj);
+    file_name = sprintf('../SSA/Results/res%s_%03u', method, itraj);
 
     % Load results file:
     load(file_name, 'N', 'N_T')
-    
-    % Preprocesing data:
-    for iexp = 1:Nexp
-        aux       = [0;
-                     N_T(1:(nt - 1), iexp)];
-                 
-        [rind, ~] = find((N_T(1:nt, iexp) - aux == 0) & (N_T(1:nt, iexp) - repmat(N_T(end, iexp), nt, 1) == 0) & (N_T(1:nt, iexp) - repmat(max(N_T(1:nt, iexp)), nt, 1) == 0));
-        
-        N_T(rind, iexp)     = NaN;
-        
-        N(rind, 1:nr, iexp) = NaN;
-    end
 
     % Almacenate total cell count data:  
-    N_Tdata(1:nt, 1:Nexp, itraj) = N_T;
+    N_Tdata(1:m_t, 1:m_e, itraj) = N_T;
        
     % Calculate pdf of the AMR level:
     aux_N   = N;
-    aux_N_T = repmat(N_T, nr, 1);
+    aux_N_T = repmat(N_T, m_r, 1);
     
-    aux_N_T = reshape(aux_N_T, nt, nr, Nexp);
+    aux_N_T = reshape(aux_N_T, m_t, m_r, m_e);
 
-    pdf_AMR(1:nt, 1:nr, 1:Nexp) = pdf_AMR(1:nt, 1:nr, 1:Nexp) + aux_N./aux_N_T;
+    pdf_AMR(1:m_t, 1:m_r, 1:m_e) = pdf_AMR(1:m_t, 1:m_r, 1:m_e) + aux_N./aux_N_T;
  
 end
 
 % PDF of the AMR level:
-pdf_AMR     = pdf_AMR/Ntraj;
+pdf_AMR     = pdf_AMR/m_traj;
 
 % Sample average of total cell counts:
-N_Tave_data = sum(N_Tdata, 3)/Ntraj;
+N_Tave_data = sum(N_Tdata, 3)/m_traj;
 
 
 % ----------------------------------------------------------------------- %
@@ -127,7 +119,7 @@ nt_pdfAMR   = numel(tind_pdfAMR);
 % Options for area plot:
 
 basestep = 0.15;                                                           % Set step between baselines;
-baseline = zeros(nr, 1) + basestep*(nt_pdfAMR - 1);                        % Set base lines for area plots;
+baseline = zeros(m_r, 1) + basestep*(nt_pdfAMR - 1);                        % Set base lines for area plots;
 rtext    = r([6 8 10 12 14 16]);                                          % x position of text in figure;
 transp   = [1.0 0.6 0.6];                                                  % Transparency for the area plots;
 xticks   = [0 0.2 0.4 0.6 0.8 1.0];
@@ -158,7 +150,7 @@ for it = 1:nt_pdfAMR
             
             % ----------------------------------------------- %
             % Plot distribution:      
-            uplim         = pdf_AMR(indt, 1:nr, iexp).' + lowlim;
+            uplim         = pdf_AMR(indt, 1:m_r, iexp).' + lowlim;
     
             coord_up      = [r, uplim];
             coord_low     = [r, lowlim];
@@ -193,7 +185,6 @@ ss.GridAlpha          = 0.3;
 ss.Layer              = 'top';
 
 xlabel('$r$', 'Interpreter', 'Latex','FontSize', 12)
-%ylabel('Subpopulation frequency', 'Interpreter', 'Latex','FontSize', 12)
 ylim([0 0.9])
 
 % ----------------------------------------------------------------------- %
@@ -225,11 +216,11 @@ f_0  = f_0/sum(f_0);
 N_0  = N_T0*f_0;
 
 % Initialice population sizes:
-Nmod  = zeros(nt, nr, Nexp);
-N_Tmod = zeros(nt, Nexp);
+Nmod  = zeros(m_t, m_r, m_e);
+N_Tmod = zeros(m_t, m_e);
 
 % Initialise coefficient matrix:
-R  = repmat(r, 1, nr) - repmat(r.', nr, 1);                      
+R  = repmat(r, 1, m_r) - repmat(r.', m_r, 1);                      
 R  = R - triu(R) + tril(R).';
 
 Xi = xi_SR*exp(k_xi*(1 - R));
@@ -243,7 +234,7 @@ b = b_S*b_R./(b_R + r.^alpha_b*(b_S - b_R));
 % Calculate kill rate at current time:
 d_max = d_maxS*beta_d^alpha_d*(1 - r.^alpha_d)./(beta_d^alpha_d + r.^alpha_d);
 
-for iexp = 1:Nexp
+for iexp = 1:m_e
     
     %-------------------------------------------------%
     % Calculate coefficient matrix of the state system:
@@ -263,8 +254,8 @@ for iexp = 1:Nexp
     
     %-------------------------------------------------%
     % Almacenate cell numbers for current antimicrobial concentration:
-    Nmod(1:nt, 1:nr, iexp) = xout;
-    N_Tmod(1:nt, iexp)     = sum(xout, 2);
+    Nmod(1:m_t, 1:m_r, iexp) = xout;
+    N_Tmod(1:m_t, iexp)     = sum(xout, 2);
 
 end
 
@@ -282,7 +273,7 @@ nt_pdfAMR   = numel(tind_pdfAMR{1});
 
 
 % Set baseline:
-baseline    = zeros(nr, 1);
+baseline    = zeros(m_r, 1);
 
 ccaux(1,:)  = [169,188,173]/256;%[47,126,68]/256;
 cccaux(1,:) = [30,69,52]/256;
@@ -310,7 +301,7 @@ for it = 1:nt_pdfAMR
             
             % ----------------------------------------------- %
             % Plot real distribution:      
-            uplim         = pdf_AMR(indt, 1:nr, iexp).' + lowlim;
+            uplim         = pdf_AMR(indt, 1:m_r, iexp).' + lowlim;
     
             coord_up      = [r, uplim];
             coord_low     = [r, lowlim];
@@ -325,7 +316,7 @@ for it = 1:nt_pdfAMR
             
             % ----------------------------------------------- %
             % Plot model distribution:      
-            uplim         = Nmod(indt, 1:nr, iexp).'/N_Tmod(indt, iexp) + lowlim;
+            uplim         = Nmod(indt, 1:m_r, iexp).'/N_Tmod(indt, iexp) + lowlim;
             
             coord_up      = [r, uplim];
     
@@ -340,8 +331,6 @@ for it = 1:nt_pdfAMR
             
             hold off
             
-            %grid on
-            
             plot_count = plot_count + 1;
         end
     end
@@ -351,7 +340,6 @@ end
 ss = subplot(1, 3, 2);
 yticks = 0:0.15:0.9;
 set(ss, 'XTick', xticks, 'YTick', yticks, 'TickLabelInterpreter', 'Latex', 'FontSize', 11)
-%ss.XAxis.TickLabelFormat = '%,.1f';
 ss.YAxis.TickLabelFormat = '%,.2f';
 
 % Add grid:
@@ -364,14 +352,12 @@ ss.GridColor     = cc(5,:);
 ss.GridLineStyle = '--';
 ss.GridAlpha     = 0.3;
 ss.Layer         = 'top';
-%box on
 
 xlabel('$r$', 'Interpreter', 'Latex','FontSize', 12)
 
 
 ss = subplot(1, 3, 3);
 set(ss, 'XTick', xticks, 'YTick', yticks, 'TickLabelInterpreter', 'Latex', 'FontSize', 11)
-%ss.XAxis.TickLabelFormat = '%,.1f';
 ss.YAxis.TickLabelFormat = '%,.2f';
 xlabel('$r$', 'Interpreter', 'Latex','FontSize', 12)
 
@@ -384,33 +370,8 @@ ss.MinorGridAlpha     = 0.3;
 ss.GridColor     = cc(9,:);
 ss.GridLineStyle = '--';
 ss.GridAlpha     = 0.3;
-%ss.Layer         = 'top';
-%box on
-
-% Define ylabels:
-% indt    = tind_pdfAMR{1};
-% yticks  = [0 0.1 0.2 0.3 0.4 0.5];
-% ylabels = {sprintf('$t=%.2f$', tmod(indt(1))),sprintf('$t=%.2f$', tmod(indt(2))),sprintf('$t=%.2f$', tmod(indt(3))),...
-%     sprintf('$t=%.2f$', tmod(indt(4))),sprintf('$t=%.2f$', tmod(indt(5))),sprintf('$t=%.2f$', tmod(indt(6)))};
-% 
-% ss = subplot(1, 2, 1);
-% set(ss, 'YTick', yticks, 'YTickLabel', ylabels, 'TickLabelInterpreter', 'Latex')
-% ylim([0 0.7])
-% 
-% indt    = tind_pdfAMR{2};
-% ylabels = {sprintf('$t=%.2f$', tmod(indt(1))),sprintf('$t=%.2f$', tmod(indt(2))),sprintf('$t=%.2f$', tmod(indt(3))),...
-%     sprintf('$t=%.2f$', tmod(indt(4))),sprintf('$t=%.2f$', tmod(indt(5))),sprintf('$t=%.2f$', tmod(indt(6)))};
-% 
-% ss = subplot(1, 2, 2);
-% set(ss, 'YTick', yticks, 'YTickLabel', ylabels, 'TickLabelInterpreter', 'Latex')
-% ylim([0 0.7])
 
 
 if fig_print == 1
     print('-r720','PanelPDF', fig_form)
 end
-
-
-
-
-
