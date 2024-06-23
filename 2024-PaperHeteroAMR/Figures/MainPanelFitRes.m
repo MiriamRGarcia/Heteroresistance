@@ -51,13 +51,13 @@ mks{5} = '>';
 
 % Load common experimental setup:
 file_name = sprintf('../PE/Results/resPE_MNHo_%utraj.mat', m_traj);
-load(file_name, 'tmod', 'texp', 'r', 'Cexp')
+load(file_name, 'tsim', 'texp', 'r', 'Cexp')
 
 m_r = numel(r);
-m_t = numel(tmod);
+m_t = numel(tsim);
 m_e = numel(Cexp);
 
-texp_ind = find(ismember(tmod, texp));
+texp_ind = find(ismember(tsim, texp));
 ntexp    = numel(texp_ind);
 
 
@@ -120,7 +120,7 @@ for iexp = 1:m_e
     
     %-------------------------------------------------%
     % Calculate population size with exact parameters:
-    [~, xout] = ode15s(@(t,s) Odes_cte(t, s, AA), tmod, N_0, ODEoptions);
+    [~, xout] = ode15s(@(t,s) Odes_cte(t, s, AA), tsim, N_0, ODEoptions);
    
     % Total population:
     N_T(1:m_t, iexp) = sum(xout, 2);
@@ -207,17 +207,17 @@ for iexp = 1:m_e
     
     %-------------------------------------------------%
     % Calculate population size:
-    [~, xout] = ode15s(@(t,s) Odes_cte(t, s, AA), tmod, N_0, ODEoptions);
+    [~, xout] = ode15s(@(t,s) Odes_cte(t, s, AA), tsim, N_0, ODEoptions);
    
     % Total population:
     N_Tmod(1:m_t, iexp) = log10(sum(xout, 2));
     
     
     for itraj = 1:m_traj
-        plot(tmod(ind_tplot), N_Tdata(ind_tplot, iexp, itraj), 'Color', [cc(iexp,:) transp(itraj)], 'HandleVisibility', 'off')
+        plot(tsim(ind_tplot), N_Tdata(ind_tplot, iexp, itraj), 'Color', [cc(iexp,:) transp(itraj)], 'HandleVisibility', 'off')
     end
     
-    plot(tmod, N_Tmod(1:m_t, iexp), 'Color', cc(iexp, :),'LineWidth', 2)
+    plot(tsim, N_Tmod(1:m_t, iexp), 'Color', cc(iexp, :),'LineWidth', 2)
     
     plot(texp, N_Tave_data(1:ntexp, iexp), mks{iexp}, 'Color', cc(iexp,:),'MarkerSize', 10, 'MarkerFaceColor', cc(iexp,:), 'HandleVisibility', 'off')
     
@@ -225,7 +225,7 @@ for iexp = 1:m_e
 
 end
 
-plot(tmod, log10(LDL)*ones(m_t, 1), '--', 'Color', 'k', 'LineWidth', 1.5)
+plot(tsim, log10(LDL)*ones(m_t, 1), '--', 'Color', 'k', 'LineWidth', 1.5)
 text(11, log10(LDL) - 0.5, 'LDL', 'Interpreter', 'Latex', 'FontSize', 17)
 
 set(gca, 'FontSize', 15, 'TickLabelInterpreter', 'Latex', 'XTick', [0 12 24 36 48])
@@ -328,21 +328,21 @@ for iexp = 1:m_e
     
     %-------------------------------------------------%
     % Calculate population size:
-    [~, xout] = ode15s(@(t,s) Odes_cte(t, s, AA), tmod, N_0, ODEoptions);
+    [~, xout] = ode15s(@(t,s) Odes_cte(t, s, AA), tsim, N_0, ODEoptions);
     
     % Total population:
     N_Tmod(1:m_t, iexp) = log10(sum(xout, 2));
     
     for itraj = 1:m_traj
-        plot(tmod(ind_tplot), N_Tdata(ind_tplot, iexp, itraj), 'Color', [cc(iexp,:) transp(itraj)], 'HandleVisibility', 'off')
+        plot(tsim(ind_tplot), N_Tdata(ind_tplot, iexp, itraj), 'Color', [cc(iexp,:) transp(itraj)], 'HandleVisibility', 'off')
     end
     
-     plot(tmod, N_Tmod(1:m_t,iexp), 'Color', cc(iexp, :),'LineWidth', 2)
+     plot(tsim, N_Tmod(1:m_t,iexp), 'Color', cc(iexp, :),'LineWidth', 2)
      plot(texp, N_Tave_data(1:ntexp, iexp), mks{iexp}, 'Color', cc(iexp,:),'MarkerSize', 10, 'MarkerFaceColor', cc(iexp,:), 'HandleVisibility', 'off')
 
 end
 
-plot(tmod, log10(LDL)*ones(m_t, 1), '--', 'Color', 'k', 'LineWidth', 1.5)
+plot(tsim, log10(LDL)*ones(m_t, 1), '--', 'Color', 'k', 'LineWidth', 1.5)
 text(11, log10(LDL) - 0.5, 'LDL', 'Interpreter', 'Latex', 'FontSize', 17)
 
 xlim([0 48])
@@ -437,13 +437,13 @@ for iexp = 1:m_e
     
     %-------------------------------------------------%
     % Calculate population size:
-    [~, xout] = ode15s(@(t,s) Odes_cte(t, s, AA), tmod, N_0, ODEoptions);
+    [~, xout] = ode15s(@(t,s) Odes_cte(t, s, AA), tsim, N_0, ODEoptions);
    
     % Total population:
     N_Tmod(1:m_t, iexp) = log10(sum(xout, 2));
     
     for itraj = 1:m_traj
-        plot(tmod(ind_tplot), N_Tdata(ind_tplot, iexp, itraj), 'Color', [cc(iexp,:) transp(itraj)], 'HandleVisibility', 'off')
+        plot(tsim(ind_tplot), N_Tdata(ind_tplot, iexp, itraj), 'Color', [cc(iexp,:) transp(itraj)], 'HandleVisibility', 'off')
     end
     
     aux = reshape(N_Tdata(1:m_t, iexp, 1), m_t, 1);
@@ -452,12 +452,12 @@ for iexp = 1:m_e
     
     N_Tmod(NaN_ind, iexp) = NaN;
     
-    plot(tmod, N_Tmod(1:m_t, iexp), 'Color', cc(iexp, :),'LineWidth', 2)
+    plot(tsim, N_Tmod(1:m_t, iexp), 'Color', cc(iexp, :),'LineWidth', 2)
     
     plot(texp, N_Tave_data(1:ntexp, iexp), mks{iexp}, 'Color', cc(iexp,:),'MarkerSize', 10, 'MarkerFaceColor', cc(iexp,:), 'HandleVisibility', 'off')
 
 end
-plot(tmod, log10(LDL)*ones(m_t, 1), '--', 'Color', 'k', 'LineWidth', 1.5)
+plot(tsim, log10(LDL)*ones(m_t, 1), '--', 'Color', 'k', 'LineWidth', 1.5)
 text(11, log10(LDL) - 0.5, 'LDL', 'Interpreter', 'Latex', 'FontSize', 17)
 
 xlim([0 48])
@@ -495,7 +495,7 @@ hAx = axes('Position',[0.825520833333334 0.466051189407781 0.148437499999999 0.4
 
 box on % put box around new pair of axes
 
-indexOfInterest = find(tmod < xfz & tmod > x0z); % range of t near perturbation
+indexOfInterest = find(tsim < xfz & tsim > x0z); % range of t near perturbation
 
 aux_ind  = intersect(indexOfInterest, texp_ind);
 aux_ind1 = find(texp_ind > indexOfInterest(1), 1 );
@@ -504,13 +504,13 @@ aux_ind2 = find(texp_ind < indexOfInterest(end), 1, 'last');
 
 for iexp = 1:m_e
     for itraj = 1:m_traj
-        plot(tmod(indexOfInterest),N_Tdata(indexOfInterest, iexp, itraj), 'Color', [cc(iexp,:) transp(itraj)], 'HandleVisibility', 'off') % plot on new axes
+        plot(tsim(indexOfInterest),N_Tdata(indexOfInterest, iexp, itraj), 'Color', [cc(iexp,:) transp(itraj)], 'HandleVisibility', 'off') % plot on new axes
         hold on
-        plot(tmod(indexOfInterest),N_Tmod(indexOfInterest, iexp),'Color', cc(iexp,:),'LineWidth', 2, 'HandleVisibility', 'off') % plot on new axes
+        plot(tsim(indexOfInterest),N_Tmod(indexOfInterest, iexp),'Color', cc(iexp,:),'LineWidth', 2, 'HandleVisibility', 'off') % plot on new axes
         
     end
     if numel(aux_ind1) > 0
-        plot(tmod(aux_ind), N_Tave_data(aux_ind1:aux_ind2, iexp), mks{iexp}, 'Color', cc(iexp,:),'MarkerSize', 10, 'MarkerFaceColor', cc(iexp,:), 'HandleVisibility', 'off')
+        plot(tsim(aux_ind), N_Tave_data(aux_ind1:aux_ind2, iexp), mks{iexp}, 'Color', cc(iexp,:),'MarkerSize', 10, 'MarkerFaceColor', cc(iexp,:), 'HandleVisibility', 'off')
     end
 end
 axis tight
