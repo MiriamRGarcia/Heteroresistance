@@ -11,7 +11,7 @@ addpath('Functions')
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 % Number of trajectories in the calibration problem:
-Ntraj = 1000;
+m_traj = 1000;
 
 % Set ODE solver precision:
 ODEoptions = odeset('RelTol', 1.0e-6, 'AbsTol', 1.0e-6);
@@ -58,41 +58,29 @@ file_name = '../SSA/Results/resSSA_001.mat';
 load(file_name, 'r', 'tmod', 'Cexp', 'pars')
 
 % Problem sizes:
-nr = numel(r);
-nt = numel(tmod);
-nC = numel(Cexp); 
+m_r = numel(r);
+m_t = numel(tmod);
+m_e = numel(Cexp); 
 
 % Initialise Gillespie trajectories of total cell counts (CFUS/mL):
-N_Tdata = zeros(nt, nC, Ntraj);
+N_Tdata = zeros(m_t, m_e, m_traj);
 
 % Loop in the trajectories:
-for itraj = 1:Ntraj
+for itraj = 1:m_traj
 
     % Create file name:
-    file_name = sprintf('../SSA/Results/resSSA_%03u.mat', itraj);
+    file_name = sprintf('../SSA/Results/res%s_%03u.mat', method, itraj);
 
     % Load results file:
     load(file_name, 'N', 'N_T')
 
-    % Preprocesing data:
-    for iexp = 1:nC
-        aux       = [0;
-                     N_T(1:(nt - 1), iexp)];
-                 
-        [rind, ~] = find((N_T(1:nt, iexp) - aux == 0) & (N_T(1:nt, iexp) - repmat(N_T(end, iexp), nt, 1) == 0) & (N_T(1:nt, iexp) - repmat(max(N_T(1:nt, iexp)), nt, 1) == 0));
-        
-        N_T(rind, iexp)      = NaN;
-        
-        N(rind, 1:nr, iexp) = NaN;
-    end
-
     % Almacenate total cell count data:  
-    N_Tdata(1:nt, 1:nC, itraj) = N_T;
+    N_Tdata(1:m_t, 1:m_e, itraj) = N_T;
  
 end
 
 % Sample average of total cell counts:
-CFUST_ave_data = sum(N_Tdata, 3)/Ntraj;
+CFUST_ave_data = sum(N_Tdata, 3)/m_traj;
 
 % ----------------------------------------------------------------------- %
 % Obtain median and inter-quartile range of data:
@@ -128,10 +116,10 @@ f_0  = f_0/sum(f_0);
 N_0  = N_T0*f_0;
 
 % Initialice population sizes:
-N_Tmod = zeros(nt, nC);
+N_Tmod = zeros(m_t, m_e);
 
 % Initialise coefficient matrix:
-R = repmat(r, 1, nr) - repmat(r.', nr, 1);                      
+R = repmat(r, 1, m_r) - repmat(r.', m_r, 1);                      
 R = R - triu(R) + tril(R).';
 
 Xi = xi_SR*exp(k_xi*(1 - R));
@@ -145,7 +133,7 @@ b = b_S*b_R./(b_R + r.^alpha_b*(b_S - b_R));
 % Calculate kill rate at current time:
 d_max = d_maxS*beta_d^alpha_d*(1 - r.^alpha_d)./(beta_d^alpha_d + r.^alpha_d);
 
-for iexp = 1:nC
+for iexp = 1:m_e
     
     %-------------------------------------------------%
     % Calculate coefficient matrix of the state system:
@@ -165,7 +153,7 @@ for iexp = 1:nC
     
     %-------------------------------------------------%
     % Almacenate cell numbers for current antimicrobial concentration:
-    N_Tmod(1:nt, iexp)      = sum(xout, 2);
+    N_Tmod(1:m_t, iexp)      = sum(xout, 2);
 
 end
 
@@ -186,13 +174,13 @@ b_plot  = b_S*b_R./(b_R + r_plot.^alpha_b*(b_S - b_R));
 ss = subplot(2, 3, 1);
 hold on
 plot(r_plot, b_plot, 'Color', bb5, 'LineWidth', 1.5)
-plot(r, b_S*ones(nr, 1), 'LineStyle', '--', 'Color', 'k', 'LineWidth', 1.5)
-plot(r, b_R*ones(nr, 1), 'LineStyle', '--', 'Color', 'k', 'LineWidth', 1.5)
+plot(r, b_S*ones(m_r, 1), 'LineStyle', '--', 'Color', 'k', 'LineWidth', 1.5)
+plot(r, b_R*ones(m_r, 1), 'LineStyle', '--', 'Color', 'k', 'LineWidth', 1.5)
 text(0.1, b_S + 0.02, '$b_S$', 'Interpreter', 'Latex', 'FontSize', 17)
 text(0.1, b_R + 0.02, '$b_R$', 'Interpreter', 'Latex', 'FontSize', 17)
 
 r_max = (b_R*(alpha_b - 1)/((alpha_b + 1)*(b_S - b_R)))^(1/alpha_b);
-plot(r_max*ones(nr, 1), linspace(b_R, b_S, nr), 'LineStyle', '--', 'Color', 'k', 'LineWidth', 1.5)
+plot(r_max*ones(m_r, 1), linspace(b_R, b_S, m_r), 'LineStyle', '--', 'Color', 'k', 'LineWidth', 1.5)
 ttb = text(r_max, 0.32, '$r_b$', 'Interpreter', 'Latex', 'FontSize', 17);
 ttb.Position = [0.661498708010336 0.333680781758958 0];
 
@@ -220,11 +208,11 @@ for iexp = Exps
     d_plot = dmax_plot.*HC;
     plot(r_plot, d_plot, 'Color', cc(iexp, :), 'LineWidth', 1.5)
 end
-plot(r, d_maxS*ones(nr, 1), 'LineStyle', '--', 'Color', 'k', 'LineWidth', 1.5)
+plot(r, d_maxS*ones(m_r, 1), 'LineStyle', '--', 'Color', 'k', 'LineWidth', 1.5)
 text(0.1, d_maxS + 0.3, '$d_{maxS}$', 'Interpreter', 'Latex', 'FontSize', 17)
 
 r_max = ((alpha_d - 1)*beta_d^alpha_d/(alpha_d + 1))^(1/alpha_d);
-plot(r_max*ones(nr, 1), linspace(0, d_maxS, nr), 'LineStyle', '--', 'Color', 'k', 'LineWidth', 1.5)
+plot(r_max*ones(m_r, 1), linspace(0, d_maxS, m_r), 'LineStyle', '--', 'Color', 'k', 'LineWidth', 1.5)
 ttk = text(r_max, -0.1, '$r_d$', 'Interpreter', 'Latex', 'FontSize', 17);
 ttk.Position = [0.286472458455655 -0.217263843648209 0];
 hold off
@@ -259,22 +247,22 @@ MIC_label = [0 1 2 4 8 10 12 16 32];
 
 for iexp = Exps
     
-    NaNind = find(isnan(logN_Tave_data(1:nt, iexp)));
+    NaNind = find(isnan(logN_Tave_data(1:m_t, iexp)));
     
     % ----------------------------------------------- %
     % Plot model average of data:
     logN_Tmod(NaNind, iexp) = NaN;
     
-    plot(tmod, logN_Tmod(1:nt, iexp), 'Color', cc(iexp, :), 'LineWidth', 1.0)
+    plot(tmod, logN_Tmod(1:m_t, iexp), 'Color', cc(iexp, :), 'LineWidth', 1.0)
     
     % ----------------------------------------------- %
     % Plot average value of trajectories:
-    plot(tmod, logN_Tave_data(1:nt, iexp), 'LineStyle', '--', 'Color', cc(iexp, :), 'LineWidth', 1.0, 'HandleVisibility', 'off')
+    plot(tmod, logN_Tave_data(1:m_t, iexp), 'LineStyle', '--', 'Color', cc(iexp, :), 'LineWidth', 1.0, 'HandleVisibility', 'off')
 
     % ----------------------------------------------- %
     % Shade area between quartile 0.25 and 0.75:
-    lowlim = logN_Tdata_quarlow(1:nt, iexp);
-    uplim  = logN_Tdata_quarup(1:nt, iexp);
+    lowlim = logN_Tdata_quarlow(1:m_t, iexp);
+    uplim  = logN_Tdata_quarup(1:m_t, iexp);
     
     if numel(NaNind) > 0
         lowlim(NaNind:end) = [];
@@ -295,10 +283,10 @@ for iexp = Exps
 
     % ----------------------------------------------- %
     % Maximum an minimum of data without outliers:
-    N_Tdata_aux = reshape(N_Tdata(1:nt, iexp, 1:Ntraj), nt, Ntraj);
-    IQR_aux     = IQR(1:nt, iexp);
-    limlow      = repmat(N_Tdata_quarlow(1:nt, iexp) - 1.5*IQR_aux, 1, Ntraj);
-    limup       = repmat(N_Tdata_quarup(1:nt, iexp)  + 1.5*IQR_aux, 1, Ntraj);
+    N_Tdata_aux = reshape(N_Tdata(1:m_t, iexp, 1:m_traj), m_t, m_traj);
+    IQR_aux     = IQR(1:m_t, iexp);
+    limlow      = repmat(N_Tdata_quarlow(1:m_t, iexp) - 1.5*IQR_aux, 1, m_traj);
+    limup       = repmat(N_Tdata_quarup(1:m_t, iexp)  + 1.5*IQR_aux, 1, m_traj);
     outind      = find(limup < N_Tdata_aux | N_Tdata_aux < limlow);
 
     N_Tdata_aux(outind) = NaN;
@@ -353,15 +341,15 @@ set(ss, 'TickLabelInterpreter', 'Latex', 'FontSize', 14)
 % ----------------------------------------------------------------------- %
 % Plot extinction probability:
 Cexp = linspace(Cexp(1), Cexp(end-1), 50);
-nC   = numel(Cexp);
-Pext = zeros(nt, nC);
+m_e   = numel(Cexp);
+Pext = zeros(m_t, m_e);
 
 % Initial condition for ODEs:
 z0 = [N_0;
       0;
       0];
 
-for iC = 1:nC
+for iC = 1:m_e
     
     %-------------------------------------------------%
     % Calculate coefficient matrix of the state system:
@@ -379,10 +367,10 @@ for iC = 1:nC
     %-------------------------------------------------%
     % Call to ODEs with extinction probability:
     [~, zout] = ode15s(@(t,s) OdesPext(t, s, b, d, AA), tmod, z0, ODEoptions);
-    zz        = zout(1:nt, nr + 2);
+    zz        = zout(1:m_t, m_r + 2);
     
     % Extinction probability:
-    Pext(1:nt, iC) = (zz./(1 + zz)).^N_T0;
+    Pext(1:m_t, iC) = (zz./(1 + zz)).^N_T0;
 end
 
 Cticks = 0:0.8:6.4;%[0 0.2 0.8 1.6 6.4];
