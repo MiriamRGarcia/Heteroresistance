@@ -13,6 +13,9 @@ addpath('Functions')
 % Number of trajectories in the calibration problem:
 m_traj = 1000;
 
+% Choose implementation (direct method = SSA or rejection based = RSSA):
+method = 'RSSA'; % = 'SSA'; = 'RSSA';
+
 % Set ODE solver precision:
 ODEoptions = odeset('RelTol', 1.0e-6, 'AbsTol', 1.0e-6);
 
