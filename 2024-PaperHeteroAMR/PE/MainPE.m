@@ -15,7 +15,11 @@ addpath('Results')
 
 % Options to generate random data:
 noise    = 'PN';                                                         % Noise assumption (= 'MNHo'; 'MNHe'; 'PN');
-Ntraj    = 3;                                                              % Number of replicates;
+
+% Choose method to generated trajectories for PN case (direct method = SSA or rejection based = RSSA):
+method   = 'RSSA'; % = 'SSA'; = 'RSSA';
+
+m_traj   = 3;                                                              % Number of replicates;
 load_res = 0;                                                              % Load previous fit results (=1) or not (=0);
 seed     = 10;                                                             % Seed to generate random gaussian numbers;
 
@@ -110,16 +114,16 @@ mks{6} = '<';
 % End of user-defined settings
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-results_name = sprintf('Results/res1PE_%s_%utraj.mat', noise, Ntraj);       % Name of the file to keep the PE results;
+results_name = sprintf('Results/res1PE_%s_%utraj.mat', noise, m_traj);       % Name of the file to keep the PE results;
     
 rng(seed)                                                                  % Set seed for generate randoms (MNHo and MNHe cases);
 
 pars = [b_S;b_R;alpha_b;d_maxS;alpha_d;beta_d;EC_50d;H_d;xi_SR;...         % Array with model parameters;
        k_xi;N_T0;lambda_T0];
 
-tmod     = t0:ht:tf;                                                       % Array with times to simulate model;
-tmod     = sort(unique([tmod texp])).'; 
-texp_ind = find(ismember(tmod, texp));  
+tsim     = t0:ht:tf;                                                       % Array with times to simulate model;
+tsim     = sort(unique([tsim texp])).'; 
+texp_ind = find(ismember(tsim, texp));  
 
 if equi == 1                                                               % Array with AMR levels (if not previously defined);
     r  = linspace(ra, rb, nr).';
@@ -130,7 +134,7 @@ end
 R = repmat(r, 1, nr) - repmat(r.', nr, 1);
 R = R - triu(R) + tril(R).';
 
-nt    = numel(tmod);    
+nt    = numel(tsim);    
 ntexp = numel(texp);
 Nexp  = numel(Cexp);
 
@@ -147,10 +151,10 @@ else
     % ------------------------------------------------------------------- %
     % Load data of SSA trajectories for the PN case:
     if strcmp(noise, 'PN')
-        N_Tdata = zeros(ntexp, Nexp, Ntraj);
+        N_Tdata = zeros(ntexp, Nexp, m_traj);
         aux_ii = 1;
         for ii = itraj
-            traj_name = sprintf('../SSA/Results/resSSA_%03u.mat', ii);
+            traj_name = sprintf('../SSA/Results/res%s_%03u.mat', method, ii);
             load(traj_name, 'N_T')
             N_Tdata(1:ntexp, 1:Nexp, aux_ii) = N_T(texp_ind, 1:Nexp);
             aux_ii = aux_ii + 1;
@@ -184,7 +188,7 @@ else
 
             AA = AA_aux + diag(b - d);                                     % Coefficient matrix for ODEs;
 
-            [~, xout] = ode15s(@(t,s) Odes_cte(t, s, AA), tmod, N_0, ODEoptions);
+            [~, xout] = ode15s(@(t,s) Odes_cte(t, s, AA), tsim, N_0, ODEoptions);
    
             
             N_T(1:nt, iexp) = sum(xout, 2);                                 % Total population size;
@@ -193,14 +197,14 @@ else
         % Add noise to data:
         N_T_aux = N_T(texp_ind, 1:Nexp);
         if strcmp(noise, 'MNHo')
-            N_Tdata = log10(repmat(N_T_aux, 1, 1, Ntraj)) + sd*randn(ntexp, Nexp, Ntraj);
+            N_Tdata = log10(repmat(N_T_aux, 1, 1, m_traj)) + sd*randn(ntexp, Nexp, m_traj);
         else
             var     = var_a*N_T_aux.^var_b;
-            N_Tdata = repmat(N_T_aux, 1, 1, Ntraj) + repmat(sqrt(var), 1, 1, Ntraj).*randn(ntexp, Nexp, Ntraj);     
+            N_Tdata = repmat(N_T_aux, 1, 1, m_traj) + repmat(sqrt(var), 1, 1, m_traj).*randn(ntexp, Nexp, m_traj);     
         end   
     end
     
-    N_Tave_data = sum(N_Tdata, 3)/Ntraj;
+    N_Tave_data = sum(N_Tdata, 3)/m_traj;
     
     % Define weights to remove NaN data (for PN case):
     Weights = ones(ntexp, Nexp);
@@ -208,7 +212,7 @@ else
     Weights(NaN_ind) = 0;
     
     % Sample variance of replicates (for PN case)
-    Var_data = sum((N_Tdata - repmat(N_Tave_data, 1, 1, Ntraj)).^2, 3)/(Ntraj - 1);
+    Var_data = sum((N_Tdata - repmat(N_Tave_data, 1, 1, m_traj)).^2, 3)/(m_traj - 1);
 end
 
 % ----------------------------------------------------------------------- %
@@ -277,7 +281,7 @@ end
 problem.f = sprintf('costFun_%s',noise);                                   % Name of the cost function; 
 
 
-Results = ess_kernel(problem, opts, r, R, tmod, texp_ind, Cexp,...         % Call the optimization function (ESS):
+Results = ess_kernel(problem, opts, r, R, tsim, texp_ind, Cexp,...         % Call the optimization function (ESS):
                      N_Tave_data, pars_nom, Var_data, Weights, ODEoptions);
 
 pars_opt = Results.xbest.'.*pars_nom;                                      % Obtain optimal parameters;
@@ -288,7 +292,7 @@ delete ess_report.mat                                                      % Rem
 % ----------------------------------------------------------------------- %
 % Save results:
 if strcmp(noise, 'PN')
-    save(results_name, 'r', 'tmod', 'texp', 'Cexp', 'pars', 'pars_opt', 'f_best',...
+    save(results_name, 'r', 'tsim', 'texp', 'Cexp', 'pars', 'pars_opt', 'f_best',...
          'itraj', 'N_Tdata', 'N_Tave_data','seed', 'Weights', 'Var_data', 'ODEoptions')
 else
     % Calculate total counts with optimal parameters:
@@ -332,7 +336,7 @@ else
 
         AA = AA_aux + diag(b - d);                                    
 
-        [~, xout] = ode15s(@(t,s) Odes_cte(t, s, AA), tmod, N_0, ODEoptions);
+        [~, xout] = ode15s(@(t,s) Odes_cte(t, s, AA), tsim, N_0, ODEoptions);
         
         N_Tmod(1:ntexp, iexp) = sum(xout(texp_ind,1:nr), 2);            
         
@@ -346,13 +350,13 @@ else
         auxN_Tmod  = log10(auxN_Tmod);
         var        = sum((auxN_Tdata - auxN_Tmod).^2)/(ntexp*Nexp - 1);
         sd         = sqrt(var);
-        save(results_name, 'r', 'tmod', 'texp', 'Cexp', 'pars', 'pars_opt', 'f_best',...
+        save(results_name, 'r', 'tsim', 'texp', 'Cexp', 'pars', 'pars_opt', 'f_best',...
             'N_Tdata','N_Tave_data','seed', 'Weights', 'Var_data', 'sd','ODEoptions')
     else
         % Calculate estimate of parameter var_a:
         var_b = pars_opt(end);
         var_a = sum((auxN_Tdata - auxN_Tmod).^2./(auxN_Tmod.^var_b))/(ntexp*Nexp);
-        save(results_name, 'r', 'tmod', 'texp', 'Cexp', 'pars', 'pars_opt', 'f_best',...
+        save(results_name, 'r', 'tsim', 'texp', 'Cexp', 'pars', 'pars_opt', 'f_best',...
          'N_Tdata','N_Tave_data','seed', 'Weights', 'Var_data', 'var_a', 'var_b','ODEoptions')
     end
 end
@@ -368,7 +372,7 @@ if plot_res == 1
         logNT_ave_data = log10(N_Tave_data);
     end
 
-    PlotPE(tmod, texp, r, Cexp, pars_opt, logNT_ave_data, col, mks, ODEoptions)
+    PlotPE(tsim, texp, r, Cexp, pars_opt, logNT_ave_data, col, mks, ODEoptions)
 end
 
 rmpath('Functions')
