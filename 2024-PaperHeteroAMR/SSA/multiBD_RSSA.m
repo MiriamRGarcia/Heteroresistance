@@ -112,26 +112,6 @@ while t < tf
         % Update total cell count:
         N_T0 = sum(N_0);
         
-        % Stop simulation if total counts reach the limit value:
-        if N_T0 > N_TL        
-        
-            t_intcount               = t_intcount + 1;
-            N(t_intcount:m_t, 1:m_r) = NaN;
-            N_T(t_intcount:m_t)      = NaN;
-        
-            return
-        
-        % Stop simulation if the population goes extinct:  
-        elseif N_T0 < 1 
-        
-            t_intcount               = t_intcount + 1;
-            N(t_intcount:m_t, 1:m_r) = 0;
-            N_T(t_intcount:m_t)      = 0;
-        
-            return
-        
-        end
-        
         % Actualice bounds if necessary:
         if numel(find(N_0 - N_low < 0)) + numel(find(N_up - N_0 < 0)) > 0
             N_low = 0.85*N_0;
@@ -153,6 +133,23 @@ while t < tf
                  
             a0_up = sum(a_up);
         end
+    end
+    
+    % Stop simulation if total counts reach the limit value:
+    if N_T0 > N_TL     
+        t_intcount               = t_intcount + 1;
+        N(t_intcount:m_t, 1:m_r) = NaN;
+        N_T(t_intcount:m_t)      = NaN;
+        
+        return
+        
+    % Stop simulation if the population goes extinct:  
+    elseif N_T0 < 1
+        t_intcount               = t_intcount + 1;
+        N(t_intcount:m_t, 1:m_r) = 0;
+        N_T(t_intcount:m_t)      = 0;
+     
+        return
     end
 end
 
