@@ -58,11 +58,11 @@ cc = [cc1;cc2;cc3;cc4;cc5;cc6;cc7;cc8;cc9;cc10];
 % Load data of Gillespie trajectories:
 
 file_name = '../SSA/Results/resSSA_001.mat';
-load(file_name, 'r', 'tmod', 'Cexp', 'pars')
+load(file_name, 'r', 'tsim', 'Cexp', 'pars')
 
 % Problem sizes:
 m_r = numel(r);
-m_t = numel(tmod);
+m_t = numel(tsim);
 m_e = numel(Cexp); 
 
 % Initialise Gillespie trajectories of total cell counts (CFUS/mL):
@@ -152,7 +152,7 @@ for iexp = 1:m_e
     
     %-------------------------------------------------%
     % Call to ODEs:
-    [~, xout] = ode15s(@(t, s) Odes_cte(t, s, AA), tmod, N_0, ODEoptions);
+    [~, xout] = ode15s(@(t, s) Odes_cte(t, s, AA), tsim, N_0, ODEoptions);
     
     %-------------------------------------------------%
     % Almacenate cell numbers for current antimicrobial concentration:
@@ -256,11 +256,11 @@ for iexp = Exps
     % Plot model average of data:
     logN_Tmod(NaNind, iexp) = NaN;
     
-    plot(tmod, logN_Tmod(1:m_t, iexp), 'Color', cc(iexp, :), 'LineWidth', 1.0)
+    plot(tsim, logN_Tmod(1:m_t, iexp), 'Color', cc(iexp, :), 'LineWidth', 1.0)
     
     % ----------------------------------------------- %
     % Plot average value of trajectories:
-    plot(tmod, logN_Tave_data(1:m_t, iexp), 'LineStyle', '--', 'Color', cc(iexp, :), 'LineWidth', 1.0, 'HandleVisibility', 'off')
+    plot(tsim, logN_Tave_data(1:m_t, iexp), 'LineStyle', '--', 'Color', cc(iexp, :), 'LineWidth', 1.0, 'HandleVisibility', 'off')
 
     % ----------------------------------------------- %
     % Shade area between quartile 0.25 and 0.75:
@@ -271,9 +271,9 @@ for iexp = Exps
         lowlim(NaNind:end) = [];
         uplim(NaNind:end)  = [];
     
-        taux = tmod(1:NaNind - 1);
+        taux = tsim(1:NaNind - 1);
     else
-        taux = tmod;
+        taux = tsim;
     end
     
     coord_up  = [taux.', uplim];
@@ -323,7 +323,7 @@ end
 % Low detection limit:
 %LDL = log10(10);
 
-%plot(tmod, LDL*ones(nt,1), 'k', 'LineStyle', '--', 'LineWidth', 1.5)
+%plot(tsim, LDL*ones(nt,1), 'k', 'LineStyle', '--', 'LineWidth', 1.5)
 xlabel('Time (h)', 'Interpreter', 'Latex', 'FontSize', 15)
 ylabel('$N_T$ ($log_{10}$CFUS/mL)', 'Interpreter', 'Latex', 'FontSize', 15)
 
@@ -369,7 +369,7 @@ for iC = 1:m_e
     
     %-------------------------------------------------%
     % Call to ODEs with extinction probability:
-    [~, zout] = ode15s(@(t,s) OdesPext(t, s, b, d, AA), tmod, z0, ODEoptions);
+    [~, zout] = ode15s(@(t,s) OdesPext(t, s, b, d, AA), tsim, z0, ODEoptions);
     zz        = zout(1:m_t, m_r + 2);
     
     % Extinction probability:
@@ -381,7 +381,7 @@ Cticks = 0:0.8:6.4;%[0 0.2 0.8 1.6 6.4];
 subplot(1, 3, 3)
 
 % Call to contour plot:
-contourf(tmod, Cexp, Pext.', 50, 'edgecolor', 'none')
+contourf(tsim, Cexp, Pext.', 50, 'edgecolor', 'none')
 
 % Colorbar of subplot:
 CB   = colorbar;
@@ -401,7 +401,7 @@ set(CB, 'TickLabelInterpreter', 'Latex')
 xlabel('Time (h)', 'Interpreter', 'Latex', 'FontSize', 15)
 ylabel('$C$ (mg/L)', 'Interpreter','Latex','FontSize', 15);
 
-xlim([tmod(1) 40])
+xlim([tsim(1) 40])
 ylim([Cexp(1) Cexp(end)])
 
 % Axis properties:
