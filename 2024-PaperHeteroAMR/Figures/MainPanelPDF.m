@@ -53,11 +53,11 @@ ODEoptions = odeset('RelTol', 1.0e-6, 'AbsTol', 1.0e-6);
 % Results path:
 file_name = fprintf('../SSA/Results/res%s_001.mat', method);
 
-load(file_name, 'r', 'tmod', 'Cexp', 'pars')
+load(file_name, 'r', 'tsim', 'Cexp', 'pars')
 
 % Problem sizes:
 m_r = numel(r);
-m_t = numel(tmod);
+m_t = numel(tsim);
 m_e = numel(Cexp);
 
 % Initialise Gillespie trajectories of total cell counts (CFUS/mL):
@@ -165,7 +165,7 @@ for it = 1:nt_pdfAMR
     end
        
     ytext = lowlim(1) + 0.03;
-    text(rtext(aux_it), ytext, sprintf('$t=%.1f$h', tmod(indt)), 'Interpreter', 'Latex','FontSize', 12)
+    text(rtext(aux_it), ytext, sprintf('$t=%.1f$h', tsim(indt)), 'Interpreter', 'Latex','FontSize', 12)
      
 end
 
@@ -250,7 +250,7 @@ for iexp = 1:m_e
     
     %-------------------------------------------------%
     % Call to ODEs:
-    [~, xout] = ode15s(@(t, s) Odes_cte(t, s, AA), tmod, N_0, ODEoptions);
+    [~, xout] = ode15s(@(t, s) Odes_cte(t, s, AA), tsim, N_0, ODEoptions);
     
     %-------------------------------------------------%
     % Almacenate cell numbers for current antimicrobial concentration:
@@ -327,7 +327,7 @@ for it = 1:nt_pdfAMR
             % ----------------------------------------------- %
             % Put text label with time:    
             ytext = lowlim(1) + 0.03;
-            text(rtext{plot_count}(it), ytext, sprintf('$t=%.1f$h', tmod(indt)), 'Interpreter', 'Latex','FontSize', 12)
+            text(rtext{plot_count}(it), ytext, sprintf('$t=%.1f$h', tsim(indt)), 'Interpreter', 'Latex','FontSize', 12)
             
             hold off
             
