@@ -3,7 +3,6 @@
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 clear variables
 close all
-clc
 
 addpath('Functions')
 
@@ -15,7 +14,7 @@ addpath('Functions')
 m_traj = 3;
 
 % Method to generate BD trajectories:
-method = 'RSSA'; % 'SSA'; 'RSSA';
+method = 'SSA';                                                            % 'SSA'; 'RSSA';
 
 % Low detection limit:
 LDL    = 10;

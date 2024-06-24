@@ -14,7 +14,7 @@ addpath('Functions')
 m_traj = 1000;
 
 % Choose implementation (direct method = SSA or rejection based = RSSA):
-method = 'RSSA'; % = 'SSA'; = 'RSSA';
+method = 'SSA';                                                            % = 'SSA'; = 'RSSA';
 
 % Set ODE solver precision:
 ODEoptions = odeset('RelTol', 1.0e-6, 'AbsTol', 1.0e-6);
@@ -320,10 +320,6 @@ for iexp = Exps
 
 end
 
-% Low detection limit:
-%LDL = log10(10);
-
-%plot(tsim, LDL*ones(nt,1), 'k', 'LineStyle', '--', 'LineWidth', 1.5)
 xlabel('Time (h)', 'Interpreter', 'Latex', 'FontSize', 15)
 ylabel('$N_T$ ($log_{10}$CFUS/mL)', 'Interpreter', 'Latex', 'FontSize', 15)
 
@@ -332,14 +328,11 @@ xlim([0 40])
 set(gca, 'XTick', [0.0 5.0 10.0 15.0 20.0 25.0 30.0 35.0 40.0])
 
 legend(lgd, 'Orientation', 'Horizontal', 'Interpreter', 'Latex', 'edgecolor', 'none', 'FontSize', 15, 'Position',[0.183997965068409 0.00912237826224061 0.676653187471205 0.0297365115607248])
-%text(10, LDL + 0.1, 'LDL', 'Interpreter', 'Latex', 'FontSize', 17)
 
 hold off
 box off
 set(ss, 'TickLabelInterpreter', 'Latex', 'FontSize', 14)
-%set(ss, 'FontSize', 13)
-%ss.XAxis.TickLabelFormat = '%,.1f';
-%ss.YAxis.TickLabelFormat = '%,.1f';
+
 
 % ----------------------------------------------------------------------- %
 % Plot extinction probability:
@@ -385,16 +378,9 @@ contourf(tsim, Cexp, Pext.', 50, 'edgecolor', 'none')
 
 % Colorbar of subplot:
 CB   = colorbar;
-%lCB  = get(CB,'Limits');
-%tCB  = linspace(lCB(1), lCB(2), 4);
-    
+
 CB.FontSize = 13;
-    
-%set(CB,'Ticks',tCB,'TickLabelInterpreter', 'Latex')
-     
-%TLCB = arrayfun(@(x) sprintf('%.2g',x), tCB, 'un', 0);
-      
-%set(CB,'TickLabels',TLCB)
+
 set(CB, 'TickLabelInterpreter', 'Latex')
  
 % Figure settings:

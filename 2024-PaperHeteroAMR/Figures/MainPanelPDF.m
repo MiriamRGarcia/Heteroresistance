@@ -3,7 +3,6 @@
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 clear variables
 close all
-clc
 
 addpath('Functions')
 
@@ -15,7 +14,7 @@ addpath('Functions')
 m_traj = 1000;
 
 % Choose implementation (direct method = SSA or rejection based = RSSA):
-method = 'RSSA'; % = 'SSA'; = 'RSSA';
+method = 'SSA'; % = 'SSA'; = 'RSSA';
 
 % Define colors of plot:
 bb   = [132,114,68]/256;
@@ -51,8 +50,7 @@ ODEoptions = odeset('RelTol', 1.0e-6, 'AbsTol', 1.0e-6);
 % Load data of Gillespie trajectories:
 
 % Results path:
-file_name = fprintf('../SSA/Results/res%s_001.mat', method);
-
+file_name = sprintf('../SSA/Results/res%s_001.mat', method);
 load(file_name, 'r', 'tsim', 'Cexp', 'pars')
 
 % Problem sizes:
@@ -348,10 +346,10 @@ ss.YMinorGrid = 'on';
 ss.MinorGridColor     = cc(5,:);
 ss.MinorGridLineStyle = '--';
 ss.MinorGridAlpha     = 0.3;
-ss.GridColor     = cc(5,:);
-ss.GridLineStyle = '--';
-ss.GridAlpha     = 0.3;
-ss.Layer         = 'top';
+ss.GridColor          = cc(5,:);
+ss.GridLineStyle      = '--';
+ss.GridAlpha          = 0.3;
+ss.Layer              = 'top';
 
 xlabel('$r$', 'Interpreter', 'Latex','FontSize', 12)
 
@@ -367,9 +365,9 @@ ss.YMinorGrid = 'on';
 ss.MinorGridColor     = cc(9,:);
 ss.MinorGridLineStyle = '--';
 ss.MinorGridAlpha     = 0.3;
-ss.GridColor     = cc(9,:);
-ss.GridLineStyle = '--';
-ss.GridAlpha     = 0.3;
+ss.GridColor          = cc(9,:);
+ss.GridLineStyle      = '--';
+ss.GridAlpha          = 0.3;
 
 
 if fig_print == 1
