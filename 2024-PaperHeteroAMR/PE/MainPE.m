@@ -114,7 +114,7 @@ mks{6} = '<';
 % End of user-defined settings
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-results_name = sprintf('Results/res1PE_%s_%utraj.mat', noise, m_traj);       % Name of the file to keep the PE results;
+results_name = sprintf('Results/resPE_%s_%utraj.mat', noise, m_traj);       % Name of the file to keep the PE results;
     
 rng(seed)                                                                  % Set seed for generate randoms (MNHo and MNHe cases);
 
