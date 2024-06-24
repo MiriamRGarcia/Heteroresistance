@@ -6,12 +6,12 @@
 function [N, N_T] = multiBD_RSSA(tsim, b, d, Xi, trans, N_0, N_TL)
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % INPUTS:
-% tsim  = Sampling times to keep the state trajectories;
+% tsim  = Sampling times m_t x 1 to keep the state trajectories;
 % b     = Array m_r x 1 with time dependent birth-rates for the m_r
-%         different subpopulations at times tsim;
+%         subpopulations at times tsim;
 % d     = Array m_r x 1 with kill rates for the m_r subpopulations;
 % Xi    = Matrix m_r x m_r with rates of change in AMR level;
-% trans = Matrix m_r x {number of reactions} with the state transitions;
+% trans = Matrix m_r x {number of reactions} of state transitions;
 % N_0   = Array m_r x 1 of initial cell counts;
 % N_TL  = Threshold value for total cell counts to stop simulation;
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -20,6 +20,7 @@ function [N, N_T] = multiBD_RSSA(tsim, b, d, Xi, trans, N_0, N_TL)
 % Obtain problem sizes:
 m_t = numel(tsim);
 m_r = numel(N_0);
+
 
 % ----------------------------------------------------------------------- %
 % Initialice variables:
@@ -31,14 +32,15 @@ t          = t0;                                                           % Cur
 t_intcount = 1;                                                            % Current simulation time-interval;
 
 % States:
-N    = zeros(m_t, m_r);                                                    % Matrix m_t x m_r of cell counts;
-N(1, 1:m_r) = N_0.';
-N_T0 = sum(N_0);                                                           % Total cell count;
-N_T  = sum(N, 2);                                                             % Array m_t x 1 of total cell counts;                                       
+N           = zeros(m_t, m_r);                                             % Matrix m_t x m_r of cell counts;
+N(1, 1:m_r) = N_0.';                                                       % Set initial condition;
+
+N_T0 = sum(N_0);                                                           % Current value of total cell count;
+N_T  = sum(N, 2);                                                          % Array m_t x 1 of total cell counts;                                       
 
 % Bounds on the current state value:
-N_low = 0.85*N_0;
-N_up  = 1.15*N_0;
+N_low = 0.9*N_0;
+N_up  = 1.1*N_0;
 
 % Bounds on propensities:
 Xi    = reshape(Xi.', [], 1);
@@ -114,8 +116,8 @@ while t < tf
         
         % Actualice bounds if necessary:
         if numel(find(N_0 - N_low < 0)) + numel(find(N_up - N_0 < 0)) > 0
-            N_low = 0.85*N_0;
-            N_up  = 1.15*N_0;
+            N_low = 0.9*N_0;
+            N_up  = 1.1*N_0;
             
             Xi_aux_low = Xi.*reshape(repmat(N_low.', m_r, 1), [], 1);
             Xi_aux_low(Xi_aux_low == 0) = [];

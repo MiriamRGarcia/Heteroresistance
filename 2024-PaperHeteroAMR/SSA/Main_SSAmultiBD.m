@@ -1,9 +1,10 @@
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-% MainSSA_multiBD: Main file to simulate trajectories of the 
-%                  multivariate BD heteroresistance model with
+% MainSSA_multiBD: Main file to simulate trajectories of the multivariate 
+%                  BD heteroresistance model with
 %                  constant antimicrobial concentration using the SSA
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 clear variables
+
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % User-defined settings:
@@ -12,7 +13,7 @@ clear variables
 method = 'RSSA'; % = 'SSA'; = 'RSSA';
 
 % Number of trajectories:
-m_traj = 10;
+m_traj = 1000;
 
 % Threshold on total cell counts to stop simulation if neccesary:
 N_TL   = 1e7;
@@ -35,9 +36,6 @@ k_xi      = log(1e2);                                                      % Dec
 N_T0      = 1e6;                                                           % Initial total cell count;
 lambda_T0 = 50;                                                            % Decay velocity of initial heteroresistance distribution with AMR level;
 
-pars      = [b_S;b_R;alpha_b;d_maxS;alpha_d;beta_d;EC_50d;H_d;...          % Parameter array;
-             xi_SR;k_xi;N_T0;lambda_T0];
-
 
 % Array of antimicrobial concentration (assumed constant in each experiment):
 MIC_S = EC_50d*(b_S/(d_maxS - b_S))^(1/H_d);                               % Minimum inhibitory concentration of S cells,
@@ -46,14 +44,12 @@ Cexp  = MIC_S*[0 1 2 4 8 32].';                                            % Arr
 % Time discretisation:
 t0   = 0;                                                                  % Initial time [h];
 tf   = 48;                                                                 % Final time [h]; 
-ht   = 1e-3;                                                               % Time step;        
-tsim = t0:ht:tf;                                                           % Time discretisation;    
+ht   = 1e-3;                                                               % Time step;           
 
 % Discretisation of AMR level:
 ra   = 0;                                                                  % Minimum AMR level (between entire sensitivity = 0 and entire resistance = 1),
 rb   = 1;                                                                  % Maximum AMR level (between entire sensitivity = 0 and entire resistance = 1),
 m_r  = 50;                                                                 % Size of AMR level discretisation,
-r    = linspace(ra, rb, m_r).';                                            % AMR level discretisation,
 
 % End of user-defined settings
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -61,16 +57,26 @@ r    = linspace(ra, rb, m_r).';                                            % AMR
 % ----------------------------------------------------------------------- %
 % Preeliminary calculations:
 
+% Parameter array:
+pars = [b_S;b_R;alpha_b;d_maxS;alpha_d;beta_d;EC_50d;H_d;...
+        xi_SR;k_xi;N_T0;lambda_T0];
+         
+% Time discretisation:
+tsim = t0:ht:tf;                                 
+
+% AMR level discretisation:
+r    = linspace(ra, rb, m_r).';                                            
+
 % Problem sizes:
-m_t       = numel(tsim);
-m_e       = numel(Cexp);
+m_t  = numel(tsim);
+m_e  = numel(Cexp);
 
 % Name of the function implementing the method:
 fun_name  = sprintf('multiBD_%s', method);
 
 % Calculate matrix of state transitions:
 can_basis = eye(m_r, m_r);
-trans     = [can_basis -can_basis];                                        % Define possible state transitions;
+trans     = [can_basis -can_basis];                                      
  
 for ii = 1:m_r
     trans_aux = zeros(m_r, m_r);
@@ -107,16 +113,16 @@ N_0(1) = N_0(1) + (N_T0 - sum(N_0));
 N   = zeros(m_t, m_r, m_e);                                                % Initialise trajectories of cell counts;
 N_T = zeros(m_t, m_e);                                                     % Initialise trajectories of total cell count;
 
-for itraj = 1:m_traj
-
+for itraj = 2:m_traj
+    itraj
     % Save seed for data reproducibility:
-    seed  = itraj*100;
+    seed  = itraj*10;
     
     % Name of the file to keep the results:
     res_name = sprintf('Results/res%s_%03u', method, itraj);
     
     for iexp = 1:m_e
-        
+        iexp
         % Set same seed for the different experiments:
         rng(seed)
         
