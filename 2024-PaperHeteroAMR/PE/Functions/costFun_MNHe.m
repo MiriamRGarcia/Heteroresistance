@@ -72,7 +72,7 @@ for iexp = 1:Nexp
     [~, xout] = ode15s(@(s,y) Odes_cte(s, y, AA), tmod, N_0, ODEoptions);
     
     N_T                    = sum(xout, 2);
-    N_Tmod(1:ntexp, iexp) = log10(N_T(texp_ind));
+    N_Tmod(1:ntexp, iexp) = N_T(texp_ind);
 
 end
 
