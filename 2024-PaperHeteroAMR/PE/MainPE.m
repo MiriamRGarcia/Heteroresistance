@@ -14,14 +14,17 @@ addpath('Results')
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 % Options to generate random data:
-noise    = 'PN';                                                         % Noise assumption (= 'MNHo'; 'MNHe'; 'PN');
+noise    = 'MNHo';                                                         % Noise assumption (= 'MNHo'; 'MNHe'; 'PN');
 
-% Choose method to generated trajectories for PN case (direct method = SSA or rejection based = RSSA):
+% Define number of run (to not overwrite previous results):
+m_run    = 1;
+ 
+% Choose method used to generated trajectories for PN case
+% (direct method = SSA or rejection based = RSSA):
 method   = 'RSSA'; % = 'SSA'; = 'RSSA';
 
 m_traj   = 3;                                                              % Number of replicates;
 load_res = 0;                                                              % Load previous fit results (=1) or not (=0);
-seed     = 10;                                                             % Seed to generate random gaussian numbers;
 
 if strcmp(noise, 'PN')
     itraj = [10 50 100];                                                   % Trajectories of the BD process to load;
@@ -51,6 +54,8 @@ k_xi    = log(1e2);                                                        % Sha
 N_T0      = 1e6;                                                           % Initial population size;
 lambda_T0 = 50;                                                            % Shape coefficient of initial condition;
 
+seed      = 10;                                                            % Seed used to generate random data for MNHo and MNHe cases;
+
 % Time discretisation:
 t0   = 0;                                                                  % Initial simulation time;
 tf   = 48;                                                                 % Final simulation time;
@@ -58,20 +63,10 @@ ht   = 1e-3;                                                               % Tim
 texp = [2 4 6 8 10 12 16 20 24 36 48];                                     % Sampling times for model calibration;
 
 
-% Discretisation of AMR level:
-equi = 1;                                                                  % Equispaced discretisation of AMR level (=1) or not (=0)
-                                                                           % If equi = 0 the user must define the AMR level discretisation
-                                                                           % as a column array. For example: r = [0.3;0.35;0.7;0.99];
-r    = [];                                                                 % Discretisation of AMR level if equi = 0;
-
-if equi == 1 
-    ra   = 0;                                                              % Minimum AMR level;
-    rb   = 1;                                                              % Maximum AMR level;
-    nr   = 50;                                                             % Number of subpopulations;
-elseif numel(r) == 0
-    fprintf('\n >> Please, define a discretisation of the AMR level or set "equi" option equal to one.\n')
-    return
-end
+% Discretisation of AMR level (equispaced):
+ra   = 0;                                                                  % Minimum AMR level;
+rb   = 1;                                                                  % Maximum AMR level;
+m_r  = 2;                                                                  % Number of subpopulations;
 
 % Define array of (constant) antimicrobial concentrations:
 MIC_S = EC_50d*(b_S/(d_maxS - b_S))^(1/H_d);                               % Minimum inhibitory concentration of S cells,
@@ -81,12 +76,12 @@ Cexp  = MIC_S*[0 1 2 4 8];                                                 % Arr
 ODEoptions = odeset('RelTol', 1.0e-6, 'AbsTol', 1.0e-6);
 
 % ESS solver options:
-opts.maxtime      = 1.0e6;                                                 % Maximum optimisation time;                                      
-opts.maxeval      = 1.0e1;                                                 % Maximum number of evaluations of the cost function;
+opts.maxtime      = 1.0e2;                                                 % Maximum optimisation time;                                      
+opts.maxeval      = 1.0e6;                                                 % Maximum number of evaluations of the cost function;
 opts.strategy     = 1;                                                     % (=1) fast, (=3) robust;
-opts.local.solver = 'fmincon'; %'fmincon';'solnp';  %'wdn2fb';  %'fsqp';% Local solver;
-opts.local.finish = [];%'fminsearch';%'fmincon'; %'wdn2fb'; %'fsqp';           % Local solver for final refinment;
-%opts.local.n1 = 1;                                                         % Maximum number of iterations of the local solver;
+opts.local.solver = 'fmincon'; %'fmincon';'solnp';  %'wdn2fb';  %'fsqp';   % Local solver;
+opts.local.finish = [];%'fminsearch';%'fmincon'; %'wdn2fb'; %'fsqp';       % Local solver for final refinment;
+%opts.local.n1 = 1;                                                        % Maximum number of iterations of the local solver;
 %opts.local.n2 = 1;
 
 % Plot results:
@@ -114,9 +109,8 @@ mks{6} = '<';
 % End of user-defined settings
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-results_name = sprintf('Results/resPE_%s_%utraj.mat', noise, m_traj);       % Name of the file to keep the PE results;
-    
-rng(seed)                                                                  % Set seed for generate randoms (MNHo and MNHe cases);
+results_name = sprintf('Results/resPE_%usubpop_%s_%utraj_run%u.mat',...    % Name of the file to keep the PE results;
+                        m_r, noise, m_traj, m_run);                         
 
 pars = [b_S;b_R;alpha_b;d_maxS;alpha_d;beta_d;EC_50d;H_d;xi_SR;...         % Array with model parameters;
        k_xi;N_T0;lambda_T0];
@@ -125,38 +119,35 @@ tsim     = t0:ht:tf;                                                       % Arr
 tsim     = sort(unique([tsim texp])).'; 
 texp_ind = find(ismember(tsim, texp));  
 
-if equi == 1                                                               % Array with AMR levels (if not previously defined);
-    r  = linspace(ra, rb, nr).';
-else
-    nr = numel(r);
-end
+r  = linspace(ra, rb, m_r).';                                              % Array of AMR levels;
 
-R = repmat(r, 1, nr) - repmat(r.', nr, 1);
+
+R = repmat(r, 1, m_r) - repmat(r.', m_r, 1);                               % Auxiliary matrix to solve ODEs;
 R = R - triu(R) + tril(R).';
 
-nt    = numel(tsim);    
-ntexp = numel(texp);
-Nexp  = numel(Cexp);
+m_t    = numel(tsim);                                                      % Problem sizes;
+m_texp = numel(texp);
+m_e    = numel(Cexp);
 
 % ----------------------------------------------------------------------- %
 % Generate syntetic data for MNHo and MNHe if not previously generated
-% (for PN case the data must be previously generated using SSA)
+% (for PN case, data must be previously generated using SSA)
 
 if load_res == 1
     
-    load(results_name, 'N_Tdata', 'N_Tave_data', 'pars_opt', 'Weights', 'Var_data');
+    load(results_name, 'N_Tdata', 'N_Tave_data', 'pars_opt', 'Weights', 'Var_data', 'seed');
     
 else
     
     % ------------------------------------------------------------------- %
     % Load data of SSA trajectories for the PN case:
     if strcmp(noise, 'PN')
-        N_Tdata = zeros(ntexp, Nexp, m_traj);
+        N_Tdata = zeros(m_texp, m_e, m_traj);
         aux_ii = 1;
         for ii = itraj
             traj_name = sprintf('../SSA/Results/res%s_%03u.mat', method, ii);
             load(traj_name, 'N_T')
-            N_Tdata(1:ntexp, 1:Nexp, aux_ii) = N_T(texp_ind, 1:Nexp);
+            N_Tdata(1:m_texp, 1:m_e, aux_ii) = N_T(texp_ind, 1:m_e);
             aux_ii = aux_ii + 1;
         end
         
@@ -164,23 +155,25 @@ else
         
     % ------------------------------------------------------------------- %
     % Generate random trajectories for the MNHo or MNHe cases:
-   
+    
+        rng(seed)                                                          % Set seed for generate randoms (MNHo and MNHe cases);
+        
+        N_T = zeros(m_t, m_e);                                             % Initialice total population size;        
+        
         f_0 = exp(-lambda_T0*r);
         f_0 = f_0/sum(f_0);
         N_0 = N_T0*f_0;                                                    % Initial condition for ODEs;
-   
-        N_T = zeros(nt, Nexp);                                             % Initialice total population size;
-                                                            
-        Xi = xi_SR*exp(k_xi*(1 - R));
+                                                 
+        Xi = xi_SR*exp(k_xi*(1 - R));                                      % Matrix with modification rates in AMR level;
         Xi = Xi - diag(diag(Xi));
 
-        AA_aux = Xi' - diag(sum(Xi, 2));                                   % Initialice coefficient matrix;  
-
+        AA_aux = Xi.' - diag(sum(Xi, 2));                                  % Initialice coefficient matrix;  
+        
         b     = b_S*b_R./(b_R + r.^alpha_b*(b_S - b_R));                   % Birth rate;
         d_max = d_maxS*beta_d^alpha_d*(1 - r.^alpha_d)./...
-            (beta_d^alpha_d + r.^alpha_d);                                 % Maximal kill rate;
-     
-        for iexp = 1:Nexp
+                (beta_d^alpha_d + r.^alpha_d);                             % Maximal kill rate;
+        
+        for iexp = 1:m_e
     
             C  = Cexp(iexp);  
             HC = C^H_d/(C^H_d + EC_50d^H_d);
@@ -191,23 +184,23 @@ else
             [~, xout] = ode15s(@(t,s) Odes_cte(t, s, AA), tsim, N_0, ODEoptions);
    
             
-            N_T(1:nt, iexp) = sum(xout, 2);                                 % Total population size;
+            N_T(1:m_t, iexp) = sum(xout, 2);                                 % Total population size;
         end
 
         % Add noise to data:
-        N_T_aux = N_T(texp_ind, 1:Nexp);
+        N_T_aux = N_T(texp_ind, 1:m_e);
         if strcmp(noise, 'MNHo')
-            N_Tdata = log10(repmat(N_T_aux, 1, 1, m_traj)) + sd*randn(ntexp, Nexp, m_traj);
+            N_Tdata = log10(repmat(N_T_aux, 1, 1, m_traj)) + sd*randn(m_texp, m_e, m_traj);
         else
             var     = var_a*N_T_aux.^var_b;
-            N_Tdata = repmat(N_T_aux, 1, 1, m_traj) + repmat(sqrt(var), 1, 1, m_traj).*randn(ntexp, Nexp, m_traj);     
+            N_Tdata = repmat(N_T_aux, 1, 1, m_traj) + repmat(sqrt(var), 1, 1, m_traj).*randn(m_texp, m_e, m_traj);     
         end   
     end
     
     N_Tave_data = sum(N_Tdata, 3)/m_traj;
     
     % Define weights to remove NaN data (for PN case):
-    Weights = ones(ntexp, Nexp);
+    Weights = ones(m_texp, m_e);
     NaN_ind = find(isnan(N_Tave_data));
     Weights(NaN_ind) = 0;
     
@@ -253,12 +246,15 @@ N_T0max      = 1e7;
 lambda_T0min = 10;
 lambda_T0max = 100;
 
-if nr > 2
-    problem.x_L = [b_Smin;b_Rmin;alpha_bmin;d_maxSmin;alpha_dmin;beta_dmin;EC_50dmin;H_dmin;xi_SRmin;k_ximin;N_T0min;lambda_T0min]; 
-    problem.x_U = [b_Smax;b_Rmax;alpha_bmax;d_maxSmax;alpha_dmax;beta_dmax;EC_50dmax;H_dmax;xi_SRmax;k_ximax;N_T0max;lambda_T0max];
-else
-    problem.x_L = [b_Smin;b_Rmin;d_maxSmin;EC_50dmin;H_dmin;xi_SRmin;N_T0min;lambda_T0min]; 
-    problem.x_U = [b_Smax;b_Rmax;d_maxSmax;EC_50dmax;H_dmax;xi_SRmax;N_T0max;lambda_T0max];
+problem.x_L = [b_Smin;b_Rmin;alpha_bmin;d_maxSmin;alpha_dmin;beta_dmin;EC_50dmin;H_dmin;xi_SRmin;k_ximin;N_T0min;lambda_T0min]; 
+problem.x_U = [b_Smax;b_Rmax;alpha_bmax;d_maxSmax;alpha_dmax;beta_dmax;EC_50dmax;H_dmax;xi_SRmax;k_ximax;N_T0max;lambda_T0max];
+
+if m_r < 3
+    ind_noIdentPars                = [3 5 6 10];                           % Indexes of non-identifiable parameters;
+    ind_IdentPars                  = 1:numel(pars);
+    ind_IdentPars(ind_noIdentPars) = [];
+    problem.x_L =  problem.x_L(ind_IdentPars);                             % Take bounds only on identifiable parameters;
+    problem.x_U =  problem.x_U(ind_IdentPars);
 end
 
 if strcmp(noise, 'MNHe')
@@ -267,6 +263,7 @@ if strcmp(noise, 'MNHe')
     problem.x_L = [problem.x_L;var_bmin];
     problem.x_U = [problem.x_U;var_bmax];
 end
+
 pars_nom    = problem.x_L + (problem.x_U - problem.x_L).*rand(size(problem.x_L));
 problem.x_L = problem.x_L./pars_nom;
 problem.x_U = problem.x_U./pars_nom;
@@ -275,11 +272,15 @@ np          = numel(problem.x_L);
 if load_res == 1                                                           % Initial guess;
     problem.x_0 = pars_opt./pars_nom;
 else
+    rng('shuffle')
     problem.x_0 = problem.x_L + (problem.x_U - problem.x_L).*rand(size(problem.x_L));
 end
 
-problem.f = sprintf('costFun_%s',noise);                                   % Name of the cost function; 
-
+if m_r > 2
+    problem.f = sprintf('costFun_%s',noise);                               % Name of the cost function; 
+else
+    problem.f = sprintf('costFun_%usubpop_%s', m_r, noise);
+end
 
 Results = ess_kernel(problem, opts, r, R, tsim, texp_ind, Cexp,...         % Call the optimization function (ESS):
                      N_Tave_data, pars_nom, Var_data, Weights, ODEoptions);
@@ -296,40 +297,69 @@ if strcmp(noise, 'PN')
          'itraj', 'N_Tdata', 'N_Tave_data','seed', 'Weights', 'Var_data', 'ODEoptions')
 else
     % Calculate total counts with optimal parameters:
-    b_S       = pars_opt(1);                                                      
-    b_R       = pars_opt(2);                                                     
+    if m_r > 2
+        b_S       = pars_opt(1);                                                      
+        b_R       = pars_opt(2);                                                     
 
-    alpha_b   = pars_opt(3);                                                         
+        alpha_b   = pars_opt(3);                                                         
 
-    d_maxS    = pars_opt(4);                                                    
+        d_maxS    = pars_opt(4);                                                    
 
-    alpha_d   = pars_opt(5);                                                          
-    beta_d    = pars_opt(6);                                                        
+        alpha_d   = pars_opt(5);                                                          
+        beta_d    = pars_opt(6);                                                        
 
-    EC_50d    = pars_opt(7);                                                        
-    H_d       = pars_opt(8);                                                           
+        EC_50d    = pars_opt(7);                                                        
+        H_d       = pars_opt(8);                                                           
 
-    xi_SR     = pars_opt(9);                                                      
-    k_xi      = pars_opt(10);                                                   
-    N_T0      = pars_opt(11);                                                       
-    lambda_T0 = pars_opt(12);   
+        xi_SR     = pars_opt(9);                                                      
+        k_xi      = pars_opt(10);                                                   
+        N_T0      = pars_opt(11);                                                       
+        lambda_T0 = pars_opt(12);   
     
    
-    f_0 = exp(-lambda_T0*r);
-    f_0 = f_0/sum(f_0);
-    N_0 = N_T0*f_0;                                                 
+        f_0 = exp(-lambda_T0*r);
+        f_0 = f_0/sum(f_0);
+        N_0 = N_T0*f_0;                                                 
    
-    N_Tmod = zeros(ntexp, Nexp);                                     
+        N_Tmod = zeros(m_texp, m_e);                                     
                                                             
-    Xi = xi_SR*exp(k_xi*(1 - R));
-    Xi = Xi - diag(diag(Xi));
+        Xi = xi_SR*exp(k_xi*(1 - R));
+        Xi = Xi - diag(diag(Xi));
 
-    AA_aux = Xi' - diag(sum(Xi, 2));                                  
+        AA_aux = Xi' - diag(sum(Xi, 2));                                  
 
-    b     = b_S*b_R./(b_R + r.^alpha_b*(b_S - b_R));                  
-    d_max = d_maxS*beta_d^alpha_d*(1 - r.^alpha_d)./...
-            (beta_d^alpha_d + r.^alpha_d);                               
-    for iexp = 1:Nexp
+        b     = b_S*b_R./(b_R + r.^alpha_b*(b_S - b_R));                  
+        d_max = d_maxS*beta_d^alpha_d*(1 - r.^alpha_d)./...
+            (beta_d^alpha_d + r.^alpha_d);   
+    else
+        b_S       = pars_opt(1);                                                      
+        b_R       = pars_opt(2);                                                     
+
+        d_maxS    = pars_opt(3);                                                    
+
+        EC_50d    = pars_opt(4);                                                        
+        H_d       = pars_opt(5);                                                           
+
+        xi_SR     = pars_opt(6);                                                                                                      
+        N_T0      = pars_opt(7);                                                       
+        lambda_T0 = pars_opt(8);   
+    
+   
+        f_0 = exp(-lambda_T0*r);
+        f_0 = f_0/sum(f_0);
+        N_0 = N_T0*f_0;                                                 
+   
+        N_Tmod = zeros(m_texp, m_e);                                     
+                                                            
+        Xi     = [0 xi_SR;xi_SR 0];
+
+        AA_aux = Xi.' - diag(sum(Xi, 2));                                  
+
+        b     = [b_S;b_R];                
+        d_max = [d_maxS;0];
+    end
+    
+    for iexp = 1:m_e
         C  = Cexp(iexp);  
         HC = C^H_d/(C^H_d + EC_50d^H_d);
         d  = d_max*HC;                                             
@@ -338,7 +368,7 @@ else
 
         [~, xout] = ode15s(@(t,s) Odes_cte(t, s, AA), tsim, N_0, ODEoptions);
         
-        N_Tmod(1:ntexp, iexp) = sum(xout(texp_ind,1:nr), 2);            
+        N_Tmod(1:m_texp, iexp) = sum(xout(texp_ind,1:m_r), 2);            
         
     end    
     
@@ -348,14 +378,14 @@ else
     if strcmp(noise, 'MNHo')
         % Calculate estimate of standard deviation:
         auxN_Tmod  = log10(auxN_Tmod);
-        var        = sum((auxN_Tdata - auxN_Tmod).^2)/(ntexp*Nexp - 1);
+        var        = sum((auxN_Tdata - auxN_Tmod).^2)/(m_texp*m_e - 1);
         sd         = sqrt(var);
         save(results_name, 'r', 'tsim', 'texp', 'Cexp', 'pars', 'pars_opt', 'f_best',...
             'N_Tdata','N_Tave_data','seed', 'Weights', 'Var_data', 'sd','ODEoptions')
     else
         % Calculate estimate of parameter var_a:
         var_b = pars_opt(end);
-        var_a = sum((auxN_Tdata - auxN_Tmod).^2./(auxN_Tmod.^var_b))/(ntexp*Nexp);
+        var_a = sum((auxN_Tdata - auxN_Tmod).^2./(auxN_Tmod.^var_b))/(m_texp*m_e);
         save(results_name, 'r', 'tsim', 'texp', 'Cexp', 'pars', 'pars_opt', 'f_best',...
          'N_Tdata','N_Tave_data','seed', 'Weights', 'Var_data', 'var_a', 'var_b','ODEoptions')
     end
