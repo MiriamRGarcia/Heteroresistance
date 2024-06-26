@@ -13,6 +13,12 @@ addpath('Functions')
 % Number of trajectories in the calibration problem:
 m_traj = 3;
 
+% Number of AMR levels:
+m_r    = 50;
+
+% Number of run to load results:
+m_run  = 1;
+
 % Method to generate BD trajectories:
 method = 'SSA';                                                            % 'SSA'; 'RSSA';
 
@@ -49,7 +55,8 @@ mks{5} = '>';
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 % Load common experimental setup:
-file_name = sprintf('../PE/Results/resPE_MNHo_%utraj.mat', m_traj);
+file_name = sprintf('../PE/Results/resPE_%usubpop_MNHo_%utraj_run%u.mat', m_r, m_traj, m_run);
+
 load(file_name, 'tsim', 'texp', 'r', 'Cexp')
 
 m_r = numel(r);
@@ -62,45 +69,59 @@ ntexp    = numel(texp_ind);
 
 % ----------------------------------------------------------------------- %
 % First subplot (MNHo case):
-file_name = sprintf('../PE/Results/resPE_MNHo_%utraj.mat', m_traj);
-
 load(file_name, 'pars', 'seed', 'sd')
 
 % Generate random trajectories with exact parameter values:
 rng(seed)
 
-b_S       = pars(1);                                                       % Obtain exact parameter values;
-b_R       = pars(2);
-alpha_b   = pars(3);
-d_maxS    = pars(4);
-beta_d    = pars(5);
-alpha_d   = pars(6);
-EC_50d    = pars(7);
-H_d       = pars(8);
-xi_SR     = pars(9);
-k_xi      = pars(10);
-N_T0      = pars(11);
-lambda_T0 = pars(12);
+R  = repmat(r, 1, m_r) - repmat(r.', m_r, 1);                              % Modification rates matrix;                 
+R  = R - triu(R) + tril(R).'; 
+
+if m_r > 2
+    
+    b_S       = pars(1);                                                   % Obtain exact parameter values;
+    b_R       = pars(2);
+    alpha_b   = pars(3);
+    d_maxS    = pars(4);
+    beta_d    = pars(5);
+    alpha_d   = pars(6);
+    EC_50d    = pars(7);
+    H_d       = pars(8);
+    xi_SR     = pars(9);
+    k_xi      = pars(10);
+    N_T0      = pars(11);
+    lambda_T0 = pars(12);
+ 
+    Xi = xi_SR*exp(k_xi*(1 - R));
+
+    b     = b_S*b_R./(b_R + r.^alpha_b*(b_S - b_R));                       % Birth and maximal kill rates;
+    d_max = d_maxS*beta_d^alpha_d*(1 - r.^alpha_d)./(beta_d^alpha_d + r.^alpha_d);
+    
+else
+    
+    b_S       = pars(1);                                                   % Obtain exact parameter values;
+    b_R       = pars(2);
+    d_maxS    = pars(3);
+    EC_50d    = pars(4);
+    H_d       = pars(5);
+    xi_SR     = pars(6);
+    N_T0      = pars(7);
+    lambda_T0 = pars(8);
+  
+    Xi = [xi_SR 0;0 xi_SR];
+
+    b     = [b_S;b_R];                                                     % Birth and maximal kill rates;
+    d_max = [d_maxS;0];
+end
+
+Xi     = Xi - diag(diag(Xi));
+AA_aux = Xi.' - diag(sum(Xi, 2));                                          % Auxiliary coefficient matrix;
 
 f_0 = exp(-lambda_T0*r);                                                   % Initial condition;
 f_0 = f_0/sum(f_0);
 N_0 = N_T0*f_0;
 
-
 N_T = zeros(m_t, m_e);
-
-
-R  = repmat(r, 1, m_r) - repmat(r.', m_r, 1);                                % Modification rates matrix;                 
-R  = R - triu(R) + tril(R).';   
-Xi = xi_SR*exp(k_xi*(1 - R));
-Xi = Xi - diag(diag(Xi));
-
-
-AA_aux = Xi' - diag(sum(Xi, 2));                                           % Auxiliary coefficient matrix;
-
-
-b     = b_S*b_R./(b_R + r.^alpha_b*(b_S - b_R));                           % Birth and maximal kill rates;
-d_max = d_maxS*beta_d^alpha_d*(1 - r.^alpha_d)./(beta_d^alpha_d + r.^alpha_d);
 
 for iexp = 1:m_e
     
@@ -137,36 +158,57 @@ end
 load(file_name, 'pars_opt', 'N_Tave_data')
 
 % Obtain optimal parameter values to plot model total counts:
-b_S       = pars_opt(1);
-b_R       = pars_opt(2);
-alpha_b   = pars_opt(3);
-d_maxS    = pars_opt(4);
-beta_d    = pars_opt(5);
-alpha_d   = pars_opt(6);
-EC_50d    = pars_opt(7);
-H_d       = pars_opt(8);
-xi_SR     = pars_opt(9);
-k_xi      = pars_opt(10);
-N_T0      = pars_opt(11);
-lambda_T0 = pars_opt(12);
+if m_r > 2
+    
+    % Obtain optimal parameter values:
+    b_S       = pars_opt(1);                                                   
+    b_R       = pars_opt(2);
+    alpha_b   = pars_opt(3);
+    d_maxS    = pars_opt(4);
+    beta_d    = pars_opt(5);
+    alpha_d   = pars_opt(6);
+    EC_50d    = pars_opt(7);
+    H_d       = pars_opt(8);
+    xi_SR     = pars_opt(9);
+    k_xi      = pars_opt(10);
+    N_T0      = pars_opt(11);
+    lambda_T0 = pars_opt(12);
+ 
+    Xi = xi_SR*exp(k_xi*(1 - R));
 
-% Initial condition:
-f_0 = exp(-lambda_T0*r);
+    % Calculate growth rate:
+    b = b_S*b_R./(b_R + r.^alpha_b*(b_S - b_R));
+
+    % Calculate death rate:
+    d_max = d_maxS*beta_d^alpha_d*(1 - r.^alpha_d)./(beta_d^alpha_d + r.^alpha_d);
+    
+else
+    % Obtain optimal parameter values:
+    b_S       = pars_opt(1);                                                 
+    b_R       = pars_opt(2);
+    d_maxS    = pars_opt(3);
+    EC_50d    = pars_opt(4);
+    H_d       = pars_opt(5);
+    xi_SR     = pars_opt(6);
+    N_T0      = pars_opt(7);
+    lambda_T0 = pars_opt(8);
+  
+    Xi = [xi_SR 0;0 xi_SR];
+
+    % Calculate growth rate:
+    b     = [b_S;b_R];
+
+    % Calculate death rate: 
+    d_max = [d_maxS;0];
+end
+
+Xi     = Xi - diag(diag(Xi));
+AA_aux = Xi.' - diag(sum(Xi, 2));                                          % Auxiliary coefficient matrix;
+
+ % Initial condition:
+f_0 = exp(-lambda_T0*r);                                                  
 f_0 = f_0/sum(f_0);
 N_0 = N_T0*f_0;
-
-% Mutation rates matrix:
-Xi = xi_SR*exp(k_xi*(1 - R));
-Xi = Xi - diag(diag(Xi));
-
-% Auxiliary coefficient matrix:
-AA_aux = Xi' - diag(sum(Xi, 2));
-
-% Calculate growth rate:
-b = b_S*b_R./(b_R + r.^alpha_b*(b_S - b_R));
-
-% Calculate death rate:
-d_max = d_maxS*beta_d^alpha_d*(1 - r.^alpha_d)./(beta_d^alpha_d + r.^alpha_d);
 
 % Initialice total population size:
 N_Tmod = zeros(m_t, m_e);
@@ -244,7 +286,7 @@ box off
 
 % ----------------------------------------------------------------------- %
 % Second subplot (MNHe case):
-file_name = sprintf('../PE/Results/resPE_MNHe_%utraj.mat', m_traj);
+file_name = sprintf('../PE/Results/resPE_%usubpop_MNHe_%utraj_run%u.mat', m_r, m_traj, m_run);
 
 load(file_name, 'pars_opt', 'pars_var', 'N_Tave_data', 'seed')
 
@@ -270,18 +312,50 @@ vartraj      = var_a*N_T(1:m_t, 1:m_e).^var_b;
  end
  
 % Obtain optimal parameter values to plot model fit:
-b_S       = pars_opt(1);
-b_R       = pars_opt(2);
-alpha_b   = pars_opt(3);
-d_maxS    = pars_opt(4);
-beta_d    = pars_opt(5);
-alpha_d   = pars_opt(6);
-EC_50d    = pars_opt(7);
-H_d       = pars_opt(8);
-xi_SR     = pars_opt(9);
-k_xi      = pars_opt(10);
-N_T0      = pars_opt(11);
-lambda_T0 = pars_opt(12);
+% Obtain optimal parameter values to plot model total counts:
+if m_r > 2
+    
+    % Obtain optimal parameter values:
+    b_S       = pars_opt(1);                                                   
+    b_R       = pars_opt(2);
+    alpha_b   = pars_opt(3);
+    d_maxS    = pars_opt(4);
+    beta_d    = pars_opt(5);
+    alpha_d   = pars_opt(6);
+    EC_50d    = pars_opt(7);
+    H_d       = pars_opt(8);
+    xi_SR     = pars_opt(9);
+    k_xi      = pars_opt(10);
+    N_T0      = pars_opt(11);
+    lambda_T0 = pars_opt(12);
+ 
+    Xi = xi_SR*exp(k_xi*(1 - R));
+
+    % Calculate growth rate:
+    b = b_S*b_R./(b_R + r.^alpha_b*(b_S - b_R));
+
+    % Calculate death rate:
+    d_max = d_maxS*beta_d^alpha_d*(1 - r.^alpha_d)./(beta_d^alpha_d + r.^alpha_d);
+    
+else
+    % Obtain optimal parameter values:
+    b_S       = pars_opt(1);                                                 
+    b_R       = pars_opt(2);
+    d_maxS    = pars_opt(3);
+    EC_50d    = pars_opt(4);
+    H_d       = pars_opt(5);
+    xi_SR     = pars_opt(6);
+    N_T0      = pars_opt(7);
+    lambda_T0 = pars_opt(8);
+  
+    Xi = [xi_SR 0;0 xi_SR];
+
+    % Calculate growth rate:
+    b     = [b_S;b_R];
+
+    % Calculate death rate: 
+    d_max = [d_maxS;0];
+end
 
 % Initial condition:
 f_0 = exp(-lambda_T0*r);
@@ -289,17 +363,10 @@ f_0 = f_0/sum(f_0);
 N_0 = N_T0*f_0;
 
 % Mutation rates matrix:
-Xi = xi_SR*exp(k_xi*(1 - R));
 Xi = Xi - diag(diag(Xi));
 
 % Auxiliary coefficient matrix:
 AA_aux = Xi.' - diag(sum(Xi, 2));
-
-% Calculate growth rate:
-b = b_S*b_R./(b_R + r.^alpha_b*(b_S - b_R));
-
-% Calculate death rate:
-d_max = d_maxS*beta_d^alpha_d*(1 - r.^alpha_d)./(beta_d^alpha_d + r.^alpha_d);
 
 % Initialice total population size:
 N_Tmod = zeros(m_t, m_e);
@@ -357,7 +424,7 @@ box off
 
 % ----------------------------------------------------------------------- %
 % Third subplot (PN case):
-file_name = sprintf('../PE/Results/resPE_PN_%utraj.mat', m_traj);
+file_name = sprintf('../PE/Results/resPE_%usubpop_PN_%utraj_run%u.mat', m_r, m_traj, m_run);
 
 load(file_name, 'pars_opt', 'N_Tave_data', 'itraj')
 
@@ -374,19 +441,51 @@ N_Tdata(N_Tdata < LDL) = LDL;
 N_Tdata     = log10(N_Tdata);
 N_Tave_data = log10(N_Tave_data);
 
-% Obtain optimal parameter values to plot model average:
-b_S       = pars_opt(1);
-b_R       = pars_opt(2);
-alpha_b   = pars_opt(3);
-d_maxS    = pars_opt(4);
-beta_d    = pars_opt(5);
-alpha_d   = pars_opt(6);
-EC_50d    = pars_opt(7);
-H_d       = pars_opt(8);
-xi_SR     = pars_opt(9);
-k_xi      = pars_opt(10);
-N_T0      = pars_opt(11);
-lambda_T0 = pars_opt(12);
+
+% Obtain optimal parameter values to plot model total counts:
+if m_r > 2
+    
+    % Obtain optimal parameter values:
+    b_S       = pars_opt(1);                                                   
+    b_R       = pars_opt(2);
+    alpha_b   = pars_opt(3);
+    d_maxS    = pars_opt(4);
+    beta_d    = pars_opt(5);
+    alpha_d   = pars_opt(6);
+    EC_50d    = pars_opt(7);
+    H_d       = pars_opt(8);
+    xi_SR     = pars_opt(9);
+    k_xi      = pars_opt(10);
+    N_T0      = pars_opt(11);
+    lambda_T0 = pars_opt(12);
+ 
+    Xi = xi_SR*exp(k_xi*(1 - R));
+
+    % Calculate growth rate:
+    b = b_S*b_R./(b_R + r.^alpha_b*(b_S - b_R));
+
+    % Calculate death rate:
+    d_max = d_maxS*beta_d^alpha_d*(1 - r.^alpha_d)./(beta_d^alpha_d + r.^alpha_d);
+    
+else
+    % Obtain optimal parameter values:
+    b_S       = pars_opt(1);                                                 
+    b_R       = pars_opt(2);
+    d_maxS    = pars_opt(3);
+    EC_50d    = pars_opt(4);
+    H_d       = pars_opt(5);
+    xi_SR     = pars_opt(6);
+    N_T0      = pars_opt(7);
+    lambda_T0 = pars_opt(8);
+  
+    Xi = [xi_SR 0;0 xi_SR];
+
+    % Calculate growth rate:
+    b     = [b_S;b_R];
+
+    % Calculate death rate: 
+    d_max = [d_maxS;0];
+end
 
 % Initial condition:
 f_0  = exp(-lambda_T0*r);
@@ -397,16 +496,9 @@ N_0  = N_T0*f_0;
 N_Tmod = zeros(m_t, m_e);
 
 % Mutation rates matrix:
-Xi = xi_SR*exp(k_xi*(1 - R));
 Xi = Xi - diag(diag(Xi));
 
 AA_aux = Xi' - diag(sum(Xi, 2));
-
-% Calculate growth rate:
-b = b_S*b_R./(b_R + r.^alpha_b*(b_S - b_R));
-
-% Calculate death rate:
-d_max = d_maxS*beta_d^alpha_d*(1 - r.^alpha_d)./(beta_d^alpha_d + r.^alpha_d);
 
 % ----------------------------------------------------------------------- %
 % Plot fit results with process noise:
