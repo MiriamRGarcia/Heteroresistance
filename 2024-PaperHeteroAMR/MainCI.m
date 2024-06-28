@@ -1,126 +1,132 @@
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-% Main file to calculate confidence intervals for model parameters using 
-% Fisher Information Matrix (FIM) 
+% MainCI: Main file to calculate FIM-based confidence intervals 
+%         for the parameters of the BD heteroresistance model
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 clear variables
 
+% Add folder with necessary functions:
 addpath('Functions')
-addpath('Results')
 
+%%
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % User-defined settings:
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 % Confidence level:
-confLev  = 0.9;
+confLev    = 0.9;
 
 % Noise assumption (= 'MNHo'; 'MNHe'; 'PN');
-noise    = 'PN';   
+noise      = 'PN';   
 
-% Choose implementation to generated trajectories (direct method = SSA or rejection based = RSSA):
-method   = 'RSSA'; % = 'SSA'; = 'RSSA';
+% Choose implementation used to generate BD trajectories if noise = 'PN'
+% (direct method = SSA or rejection based = RSSA):
+method     = 'SSA'; % = 'SSA'; = 'RSSA';
 
 % Set ODE solver precision:
 ODEoptions = odeset('RelTol', 1.0e-6, 'AbsTol', 1.0e-6);
     
-% Use new defined settings (=1) or load calibration results (=0):
-load_res = 1;
+% Name of the file keeping previous calibration results
+% (if load_name = 'None', CI are analysed with the user settings):
+load_name  = 'ResPE_50subpop_MNHo_3traj_run1.mat';
 
-if load_res < 1
-    % Number of replicates used in MLE to load results:
-    Ntraj   = 3; 
-else
-    % Values of parameters to calculate FIM:
-    b_S     = 0.63;                                                        % Birth rate of S in absence of antimicrobial;                         
-    b_R     = 0.36;                                                        % Birth rate of R;
+% ----------------------------------------------------------------------- %
+% Define new settings to calculate CI 
+% (ignore lines within % --- % if load_name is a valid file identifier)
 
-    alpha_b = 2;                                                           % Shape coefficient for AMR fitness cost
+% Number of replicates used for calibration:
+m_traj = 3;
 
-    d_maxS  = 3.78;                                                        % Maximal kill rate of S cells by antimicrobial;
-    alpha_d = 3;                                                           % Shape coefficient of bactericide inhibition;  
-    beta_d  = 0.4;                                                         % Shape coefficient of bactericide inhibition;
+% Assumptions on measurement noise:
+seed = 1;                                                                  % Set seed for data reproducibility;
 
-    EC_50d  = 1;                                                           % Half maximal inhibitory concentration;
-    H_d     = 1;                                                           % Hill coefficient;
-
-    xi_SR   = 1e-6;                                                        % Modification rate of AMR level between S and R cells;
-    k_xi    = log(1e2);                                                    % Shape parsameter of modification rate;
-
-    N_T0      = 1e6;                                                       % Initial population size;
-    lambda_T0 = 50;                                                        % Shape coefficient of initial condition;
-
-    FIM_pars  = [b_S;b_R;alpha_b;d_maxS;alpha_d;beta_d;EC_50d;H_d;...
-                 xi_SR;k_xi;N_T0;lambda_T0];
-    if strcmp(noise, 'MNHo')
-        sd = 0.5;
-    elseif strcmp(noise, 'MNHe')
-        var_a = 1;
-        var_b = 2;
-    else
-        itraj = [1 100 1000];
-    end
-    
-    % Time discretisation:
-    t0   = 0;                                                              % Initial simulation time;
-    tf   = 48;                                                             % Final simulation time;
-    ht   = 1e-3;                                                           % Time step for model simulation (solve ODEs);
-    tsim = t0:ht:tf;                                                       % Times to simulate ODEs;
-    texp = [2 4 6 8 10 12 16 20 24 36 48];                                 % Sampling times for model calibration;
-
-
-    % Discretisation of AMR level:
-    equi = 1;                                                              % Equispaced discretisation of AMR level (=1) or not (=0)
-                                                                           % If equi = 0 the user must define the AMR level discretisation
-                                                                           % as a column array. For example: r = [0.3;0.35;0.7;0.99];
-    r    = [];                                                             % Discretisation of AMR level if equi = 0;
-
-    if equi == 1 
-        ra   = 0;                                                          % Minimum AMR level;
-        rb   = 1;                                                          % Maximum AMR level;
-        nr   = 50;                                                         % Number of subpopulations;
-        hr   = 1/(nr - 1);
-        r    = (ra:hr:rb).';
-    elseif numel(r) == 0
-        fprintf('\n >> Please, define a discretisation of the AMR level or set "equi" option equal to one.\n')
-        return
-    end
-    
-    % Drug concentration in each experiment:
-    MIC_S = EC_50d*(b_S/(d_maxS - b_S))^(1/H_d);
-    Cexp  = MIC_S*[0.0 1.0 2.0 4.0 8.0].';
-   
+if strcmp(noise, 'MNHo')
+    sd = 0.5;                                                              % Standard deviation of the measurement error
+                                                                           % in the MNHo case (log scale);
+elseif strcmp(noise, 'MNHe')
+    var_a = 1;                                                             % Parameters of variance in MNHe case;
+    var_b = 2;
 end
 
-% Nominal parameter values for better conditioning of FIM:
-pars_nom  = [0.1;0.1;1;1;1;0.1;1;1;1e-6;1;1e6;10];
+% Choose replicates to calibrate if noise = 'PN':
+itraj     = [10 50 100];
+
+% Discretisation of the AMR level:
+ra  = 0;                                                                   % Minimum AMR level;
+rb  = 1;                                                                   % Maximum AMR level;
+m_r = 50;                                                                  % Number of subpopulations;
+        
+% Time discretisation:
+t0 = 0;                                                                    % Initial simulation time;
+tf = 48;                                                                   % Final simulation time;
+ht = 1e-3;                                                                 % Time step for model simulation (solve ODEs);
+
+% Sampling times used for calibration:
+texp = [2 4 6 8 10 12 16 20 24 36 48];
+
+% Values of parameters to calculate FIM:
+b_S       = 0.63;                                                          % Birth rate of S in absence of antimicrobial;                         
+b_R       = 0.36;                                                          % Birth rate of R;
+
+alpha_b   = 2;                                                             % Shape coefficient for AMR fitness cost
+
+d_maxS    = 3.78;                                                          % Maximal kill rate of S cells by antimicrobial;
+alpha_d   = 3;                                                             % Shape coefficient of bactericide inhibition;  
+beta_d    = 0.4;                                                           % Shape coefficient of bactericide inhibition;
+
+EC_50d    = 1;                                                             % Half maximal inhibitory concentration;
+H_d       = 1;                                                             % Hill coefficient;
+
+xi_SR     = 1e-6;                                                          % Modification rate of AMR level between S and R cells;
+k_xi      = log(1e2);                                                      % Shape parsameter of modification rate;
+
+N_T0      = 1e6;                                                           % Initial population size;
+lambda_T0 = 50;                                                            % Shape coefficient of initial condition;                                              
+
+% Array of antimicrobial concentrations:
+MIC_S = EC_50d*(b_S/(d_maxS - b_S))^(1/H_d);
+Cexp  = MIC_S*[0.0 1.0 2.0 4.0 8.0].';
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % End of user-defined settings
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-if load_res < 1
-    % Load optimal parameters and calibration settings:
-    results_name = sprintf('../PE/Results/resPE_%s_%utraj.mat', noise, Ntraj); 
+%%
+load_name  = sprintf('Results/ResPE/%s', load_name);
+             
+if exist(load_name, 'file')
+    
+    % Load optimal parameters and data from previous calibration results:
     if strcmp(noise, 'MNHo')
-        load(results_name, 'r', 'tsim', 'Cexp', 'texp', 'pars_opt', 'Weights', 'Var_data', 'sd')
+        load(load_name, 'r', 'tsim', 'Cexp', 'texp', 'pars_opt', 'sd')
     elseif strcmp(noise, 'MNHe')
-        load(results_name, 'r', 'tsim', 'Cexp', 'texp', 'pars_opt', 'Weights', 'Var_data', 'var_a', 'var_b')
+        load(load_name, 'r', 'tsim', 'Cexp', 'texp', 'pars_opt', 'var_a_opt', 'var_b_opt')
         pars_opt = pars_opt(1:end-1);
     else
-        load(results_name, 'r', 'tsim', 'Cexp', 'texp', 'pars_opt', 'Weights', 'Var_data')
+        load(load_name, 'r', 'tsim', 'Cexp', 'texp', 'pars_opt', 'Weights', 'Var_data')
     end
+    
     FIM_pars  = pars_opt;
-    N_T0      = FIM_pars(end-1);
-    lambda_T0 = FIM_pars(end);
+
 else
-    tsim     = sort(unique([tsim texp])).';   
+    
+    % Parameter array to calculate FIM:
+    FIM_pars  = [b_S;b_R;alpha_b;d_maxS;alpha_d;beta_d;EC_50d;H_d;...      
+                 xi_SR;k_xi;N_T0;lambda_T0];
+             
+    % Array of AMR levels:
+    r    = linspace(ra, rb, m_r).';
+    
+    % Simulation times:
+    tsim = (t0:ht:tf).';
+    tsim = sort(unique([tsim texp])).';   
 end
 
+% Indexes of sampling times within simulation times:
 texp_ind = find(ismember(tsim, texp));
 
 % Problem sizes:
-nr    = numel(r);
-nt    = numel(tsim);    
+
+m_t    = numel(tsim);    
 ntexp = numel(texp);
 np    = numel(FIM_pars);
 Nexp  = numel(Cexp);
@@ -183,12 +189,12 @@ if strcmp(noise, 'MNHo')
     y_T = log10(N_T);
 
     % Calculate sensitivities of y_T to parameters:
-    sensy_T = zeros(nt, np, Nexp);
+    sensy_T = zeros(m_t, np, Nexp);
 
     for ip = 1:np
-        aux = reshape(sensN_T(1:nt, ip, 1:Nexp), nt, Nexp);
+        aux = reshape(sensN_T(1:m_t, ip, 1:Nexp), m_t, Nexp);
         aux = (aux./N_T)/log(10);
-        sensy_T(1:nt, ip, 1:Nexp) = aux;
+        sensy_T(1:m_t, ip, 1:Nexp) = aux;
         
         % Obtain sensitivities at the sampling times:
         aux = reshape(sensy_T(texp_ind, ip, 1:Nexp), ntexp, Nexp);

@@ -15,7 +15,7 @@ addpath('Functions')
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 % Noise assumption (noise = 'MNHo'; 'MNHe'; 'PN'):
-noise     = 'MNHo';                                                     
+noise     = 'PN';                                                     
 
 % Number of replicates for calibration:
 m_traj    = 3;  
@@ -234,7 +234,7 @@ else
         if exist(traj_name, 'file')
             % Load AMR level, simulation times, sampling times and
             % antimicrobial concentrations:
-            load(traj_name, 'tsim', 'Cexp', 'pars', 'N_T')
+            load(traj_name, 'tsim', 'pars', 'N_T')
         else
             fprintf('\n>> Calibration using PN case have been selected.')
             fprintf('\n>> However, there is no previously generated SSA data for the trajectory itraj = %u', itraj(1))
@@ -293,7 +293,7 @@ else
         Var_data = sum((N_Tdata - repmat(N_Tave_data, 1, 1, m_traj)).^2, 3)/(m_traj - 1);
 
         Var_data(NaN_ind) = 1;
-        
+
     else
     
         % Generate random trajectories for the MNHo or MNHe cases
