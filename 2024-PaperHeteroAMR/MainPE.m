@@ -28,14 +28,14 @@ m_traj    = 3;
 m_run     = 2;
 
 % Name of the file with previous calibration results and synthetic data:
-load_name = 'None';%'resPE_50subpop_MNHe_3traj_run1.mat';                             % Synthetic data is generated from scratch if load_name = 'None' and
+load_name = 'None';%'resPE_50subpop_MNHe_3traj_run1.mat';                  % Synthetic data is generated from scratch if load_name = 'None' and
                                                                            % noise = 'MNHo','MNHe'. If noise = 'PN', synthetic data must
-                                                                           % have been previously generated using the code MainSSA.m.
+                                                                           % have been previously generated using the MainSSA.m.
 
 % Discretisation of the AMR level to perform calibration (equispaced):
 ra   = 0;                                                                  % Minimum AMR level;
 rb   = 1;                                                                  % Maximum AMR level;
-m_r  = 50;                                                                  % Number of subpopulations to calibrate the model;
+m_r  = 50;                                                                 % Number of subpopulations to calibrate the model;
 
 % Time discretisation:
 t0   = 0;                                                                  % Initial simulation time;
@@ -52,9 +52,9 @@ ODEoptions = odeset('RelTol', 1.0e-6, 'AbsTol', 1.0e-6);
 % previous calibration results are loaded from file:
 
 % Assumptions on measurement noise (noise = 'MNHo' or 'MNHe'):
-seed = 1;                                                                  % Set seed for data reproducibility;
+seed  = 1;                                                                 % Set seed for data reproducibility;
 
-sd = 0.5;                                                                  % Standard deviation of the measurement error
+sd    = 0.5;                                                               % Standard deviation of the measurement error
                                                                            % in the MNHo case (log scale);
 var_a = 1;                                                                 % Parameters of variance in MNHe case;
 var_b = 2;
