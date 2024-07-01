@@ -1,6 +1,10 @@
 # Heteroresistance
 
-A **MATLAB** repository to study bacterial heteroresistance under antimicrobial stress using the model proposed in: *N. Martínez-López, C. Vilas and M. R. García (2024) A birth-death model to understand bacterial antimicrobial heteroresistance from time-kill curves.* The heteroresistant population is modelled as a multivariate Birth-Death (BD) process following the evolution of the different subpopulations.
+A **MATLAB** repository to study bacterial heteroresistance under antimicrobial stress using the model proposed in: 
+
+*N. Martínez-López, C. Vilas and M. R. García (2024) A birth-death model to understand bacterial antimicrobial heteroresistance from time-kill curves.* 
+
+The heteroresistant population is modelled as a multivariate Birth-Death (BD) process following the evolution of the different subpopulations.
 
 The repository consist of the following main files:
 
