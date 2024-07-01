@@ -1,7 +1,7 @@
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % MainPE: Main file to perform Maximum Likelihood Estimation (MLE)
-% for calibrating the average BD heteroresistance model 
-% with synthetic time-kill data 
+%         for calibrating the average BD heteroresistance model 
+%         with synthetic time-kill data 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 clear variables
 close all
@@ -17,48 +17,50 @@ addpath('Functions')
 % Noise assumption (noise = 'MNHo'; 'MNHe'; 'PN'):
 noise     = 'PN';                                                     
 
-% Number of replicates for calibration:
-m_traj    = 3;  
-
-% Define number of run (to not overwrite previous calibration results):
-m_run     = 1;
-
-% Define the number of subpopulations used to generate synthetic data:
-m_rdata   = 50;
-
-% Minimum and maximum AMR level used to generate synthetic data
-% (note that m_rdata, ra_data and rb_data has no effect if noise = 'PN'
-% as data must be previously generated in this case using MainSSA.m):
-ra_data   = 0;
-rb_data   = 1;
-
-% Name of the file with previous calibration results and synthetic data:
-load_name = 'None';%'resPE_2subpop_MNHe_3traj_run1.mat';                           % Synthetic data is generated from scratch if load_name = 'None' and
-                                                                           % noise = 'MNHo','MNHe'. If noise = 'PN', synthetic data must
-                                                                           % have been previously generated using the code MainSSA.m.
-
 % If noise = 'PN', choose method used to generate the BD trajectories 
 % for loading data (direct method = SSA or rejection-based = RSSA):
 method    = 'SSA'; % = 'SSA'; = 'RSSA';
 
-% Choose replicates to calibrate if noise = 'PN':
-itraj     = [10 50 100];  
+% Number of replicates for model calibration:
+m_traj    = 3;  
+
+% Define number of run (to not overwrite previous calibration results):
+m_run     = 2;
+
+% Name of the file with previous calibration results and synthetic data:
+load_name = 'None';%'resPE_50subpop_MNHe_3traj_run1.mat';                             % Synthetic data is generated from scratch if load_name = 'None' and
+                                                                           % noise = 'MNHo','MNHe'. If noise = 'PN', synthetic data must
+                                                                           % have been previously generated using the code MainSSA.m.
+
+% Discretisation of the AMR level to perform calibration (equispaced):
+ra   = 0;                                                                  % Minimum AMR level;
+rb   = 1;                                                                  % Maximum AMR level;
+m_r  = 50;                                                                  % Number of subpopulations to calibrate the model;
+
+% Time discretisation:
+t0   = 0;                                                                  % Initial simulation time;
+tf   = 48;                                                                 % Final simulation time;
+ht   = 1e-3;                                                               % Time step for model simulation (solve ODEs);
+texp = [2 4 6 8 10 12 16 20 24 36 48];                                     % Sampling times for model calibration;
+  
+% Set ODEs solver (ode15s) precision:
+ODEoptions = odeset('RelTol', 1.0e-6, 'AbsTol', 1.0e-6);
 
 % ----------------------------------------------------------------------- %
-% Here start the options to generate synthetic time-kill data
-% Ignore the lines within % --- % if noise = 'PN' or previous calibration
-% results are loaded from file (load_name defining an existing file):
+% Here start the options to generate synthetic time-kill data.
+% Ignore the lines within % --- % below if  
+% previous calibration results are loaded from file:
 
-% Assumptions on measurement noise:
+% Assumptions on measurement noise (noise = 'MNHo' or 'MNHe'):
 seed = 1;                                                                  % Set seed for data reproducibility;
 
-if strcmp(noise, 'MNHo')
-    sd = 0.5;                                                              % Standard deviation of the measurement error
+sd = 0.5;                                                                  % Standard deviation of the measurement error
                                                                            % in the MNHo case (log scale);
-elseif strcmp(noise, 'MNHe')
-    var_a = 1;                                                             % Parameters of variance in MNHe case;
-    var_b = 2;
-end
+var_a = 1;                                                                 % Parameters of variance in MNHe case;
+var_b = 2;
+
+% Choose replicates to calibrate (if noise = 'PN'):
+itraj = [10 50 100];
 
 % Values of the model parameters:
 b_S       = 0.63;                                                          % Birth rate of S in absence of antimicrobial;                         
@@ -79,30 +81,24 @@ k_xi      = log(1e2);                                                      % Sha
 N_T0      = 1e6;                                                           % Initial population size;
 lambda_T0 = 50;                                                            % Shape coefficient of initial condition;
 
-% Time discretisation:
-t0   = 0;                                                                  % Initial simulation time;
-tf   = 48;                                                                 % Final simulation time;
-ht   = 1e-3;                                                               % Time step for model simulation (solve ODEs);
-texp = [2 4 6 8 10 12 16 20 24 36 48];                                     % Sampling times for model calibration;
+% Discretisation of the AMR level to generate synthetic time-kill data:
+m_rdata   = 50;                                                            % Number of subpopulation;
 
-% Discretisation of AMR level (equispaced):
-ra   = 0;                                                                  % Minimum AMR level;
-rb   = 1;                                                                  % Maximum AMR level;
-m_r  = 2;                                                                  % Number of subpopulations to calibrate the model;
+% Minimum and maximum AMR levels used to generate synthetic data
+% (note that m_rdata, ra_data and rb_data has no effect if noise = 'PN',
+% as data must be previously generated using MainSSA.m):
+ra_data   = 0;
+rb_data   = 1;
 
 % Define array of (constant) antimicrobial concentrations:
 MIC_S = EC_50d*(b_S/(d_maxS - b_S))^(1/H_d);                               % Minimum inhibitory concentration of S cells,
 Cexp  = MIC_S*[0 1 2 4 8];                                                 % Array of antimicrobial concentrations,
 
-
 % End of the options to generate synthetic time-kill data
 % ----------------------------------------------------------------------- %
 
-% Set ODEs solver (ode15s) precision:
-ODEoptions = odeset('RelTol', 1.0e-6, 'AbsTol', 1.0e-6);
-
 % ESS solver options:
-opts.maxtime      = 1.0e4;                                                 % Maximum optimisation time;                                      
+opts.maxtime      = 60*1;                                                  % Maximum optimisation time;                                      
 opts.maxeval      = 1.0e6;                                                 % Maximum number of evaluations of the cost function;
 opts.strategy     = 1;                                                     % (=1) fast, (=3) robust;
 opts.local.solver = 'fminsearch';                                          % Local solver;
@@ -184,47 +180,92 @@ res_name = sprintf('Results/ResPE/resPE_%usubpop_%s_%utraj_run%u.mat',...
 
 %%                
 % ----------------------------------------------------------------------- %
-% Load calibration results or generate syntetic data for MNHo and MNHe 
-% if not previously generated 
+% Load calibration results or generate syntetic data for 
+% MNHo and MNHe cases if not previously generated 
 %(for the PN case, data must be previously generated):
 
 load_name = sprintf('Results/ResPE/%s', load_name);
 
 if exist(load_name, 'file')    
     
-    fprintf('\n>> The file %s with previous calibration results was found sucessfully.', load_name)
-    
     % Load previously calibration results:
     if strcmp(noise, 'PN')
-        load(load_name, 'r', 'tsim', 'texp', 'Cexp', 'pars', 'pars_opt', 'f_best',...
+        load(load_name, 'r', 'r_data', 'tsim', 'texp', 'Cexp', 'pars', 'pars_opt', 'f_best',...
          'itraj', 'N_Tdata', 'N_Tave_data','seed', 'Weights', 'Var_data', 'ODEoptions')
     elseif strcmp(noise, 'MNHo')
-        load(load_name, 'r', 'tsim', 'texp', 'Cexp', 'pars', 'pars_opt', 'f_best',...
+        load(load_name, 'r', 'r_data', 'tsim', 'texp', 'Cexp', 'pars', 'pars_opt', 'f_best',...
             'N_Tdata','N_Tave_data','seed', 'Weights', 'Var_data', 'sd','ODEoptions')
     else
-        load(load_name, 'r', 'tsim', 'texp', 'Cexp', 'pars', 'pars_opt', 'f_best',...
+        load(load_name, 'r', 'r_data', 'tsim', 'texp', 'Cexp', 'pars', 'pars_opt', 'f_best',...
          'N_Tdata','N_Tave_data','seed', 'Weights', 'Var_data', 'var_a', 'var_b','ODEoptions')
     end
     
-    % Find indexes of sampling times within simulation times:
-    texp_ind = find(ismember(tsim, texp));
+    fprintf('\n>> Data from file: %s was loaded sucessfully.', load_name)
     
     % Problem sizes:
-    m_t    = numel(tsim);   
-    m_r    = numel(r);
-    m_texp = numel(texp);
-    m_e    = numel(Cexp);
-        
+    m_t     = numel(tsim);   
+    m_r     = numel(r);
+    m_rdata = numel(r_data);
+    m_texp  = numel(texp);
+    m_e     = numel(Cexp);
+    
+    if m_r > 2
+        par_names = {'b_S','b_R','alpha_b','d_Smax','alpha_d','beta_d',...
+                     'EC_50d','H_d','xi_SR', 'k_xi','N_T0','lambda_T0'};
+    else
+        par_names = {'b_S','b_R','d_Smax','EC_50d','H_d','xi_SR','N_T0','lambda_T0'};
+    end  
+    fprintf('\n>> The noise asummption is: %s', noise)
+    fprintf('\n>> The number of subpopulations to perform calibration is: %u', m_r)
+    fprintf('\n>> With a equispaced discretisation between r = %.2e and r = %.2e', r(1), r(m_r))
+    fprintf('\n>> The number of subpopulations used to generate data is: %u', m_rdata)
+    fprintf('\n>> With a equispaced discretisation between r = %.2e and r = %.2e', r_data(1), r_data(m_rdata))
+    fprintf('\n>> The initial guess for the model parameters is:')   
+    for ip = 1:size(par_names, 2)
+        aux_par_names = cell2mat(par_names(:,ip));
+        fprintf('\n>> %s ---> %.4e', aux_par_names, pars_opt(ip))
+    end   
+    if strcmp(noise, 'MNHe')
+        fprintf('\n>> var_b ---> %.4e\n', pars_opt(end))
+    end   
+    fprintf('\n>> Press any button to continue with the current settings.')
+    
+    pause
+    
+    % Find indexes of sampling times within simulation times:
+    texp_ind = find(ismember(tsim, texp));
+           
 else
     fprintf('\n>> The user have selected first run of parameter calibration.')
     fprintf('\n>> MLE will be performed without loading previous calibration results.')
     fprintf('\n>> Or maybe the load_name set by user does not exist as a valid .mat file.')
+    fprintf('\n>> Syntetic time-kill data will be generated with the following settings:')    
+    fprintf('\n>> The noise asummption is: %s', noise)
+    fprintf('\n>> The number of subpopulations to perform calibration is: %u', m_r)
+    fprintf('\n>> With a equispaced discretisation between r = %.2e and r = %.2e', ra, rb)
+    fprintf('\n>> The number of subpopulations used to generate data is: %u', m_rdata)
+    fprintf('\n>> With a equispaced discretisation between r = %.2e and r = %.2e', ra_data, rb_data)  
     fprintf('\n>> Press any button to continue with the current settings.')
     
     pause
     
     % Construct array of AMR levels used for calibration:                                                                      
     r = linspace(ra, rb, m_r).';
+    
+    % Construct array of AMR levels used for generate data:
+    r_data = linspace(ra_data, rb_data, m_rdata).';
+    
+    % Construct simulation times used for calibration:
+    tsim     = t0:ht:tf;                                                   % Array with times to simulate model;
+    tsim     = sort(unique([tsim texp])).'; 
+        
+    texp_ind = find(ismember(tsim, texp));                                 % Indexes of experimental times within
+                                                                           % simulation times;
+        
+    % Problem sizes:
+    m_t     = numel(tsim);   
+    m_texp  = numel(texp);
+    m_e     = numel(Cexp);    
     
     % Load previously generated data of SSA trajectories for the PN case:
     if strcmp(noise, 'PN')
@@ -234,7 +275,35 @@ else
         if exist(traj_name, 'file')
             % Load AMR level, simulation times, sampling times and
             % antimicrobial concentrations:
-            load(traj_name, 'tsim', 'pars', 'N_T')
+            tsim_aux   = tsim;
+            r_aux      = r;
+            Cexp_aux   = Cexp;
+            
+            load(traj_name, 'r', 'tsim', 'Cexp', 'pars', 'N_T')
+            
+            tsim = tsim.';
+            
+            Exps = find(ismember(Cexp, Cexp_aux));
+            
+            if numel(tsim) ~= numel(tsim_aux) || numel(r_data) ~= numel(r) || numel(Exps) ~= numel(Cexp_aux)
+                
+                fprintf('\n>> The user has set simulation times, AMR levels or antimicrobial concentrations for calibration')
+                fprintf('\n>> differing with those used to generate synthetic time-kill data in MainSSA.m')
+                fprintf('\n>> Please, change setup for calibration and run again.')
+                
+                return
+                
+            elseif numel(find(tsim - tsim_aux)) + numel(find(r_data - r)) > 0
+                fprintf('\n>> The user has set simulation times or AMR levels for calibration')
+                fprintf('\n>> differing with those used to generate synthetic time-kill data in MainSSA.m')
+                fprintf('\n>> Please, change setup for calibration and run again.')
+                
+                return          
+            end
+            
+            r    = r_aux;
+            Cexp = Cexp_aux;
+            
         else
             fprintf('\n>> Calibration using PN case have been selected.')
             fprintf('\n>> However, there is no previously generated SSA data for the trajectory itraj = %u', itraj(1))
@@ -243,18 +312,10 @@ else
             return
         end
         
-        % Problem sizes:
-        m_t     = numel(tsim);   
-        m_texp  = numel(texp);
-        m_e     = numel(Cexp);
-        
-        % Find indexes of sampling times within simulation times:
-        texp_ind = find(ismember(tsim, texp)); 
-        
         % Initialise trajectories to calibrate at the sampling times:
-        N_Tdata                     = zeros(m_texp, m_e, m_traj);
+        N_Tdata = zeros(m_texp, m_e, m_traj);
         
-        N_Tdata(1:m_texp, 1:m_e, 1) = N_T(texp_ind, 1:m_e);
+        N_Tdata(1:m_texp, 1:m_e, 1) = N_T(texp_ind, Exps);
         
         aux_ii = 2;
         
@@ -267,7 +328,7 @@ else
                 % Load total cell count data:
                 load(traj_name, 'N_T')
                 
-                N_Tdata(1:m_texp, 1:m_e, aux_ii) = N_T(texp_ind, 1:m_e);
+                N_Tdata(1:m_texp, 1:m_e, aux_ii) = N_T(texp_ind, Exps);
                 
             else
                 fprintf('\n>> Calibration using PN case have been selected.')
@@ -295,41 +356,39 @@ else
         Var_data(NaN_ind) = 1;
 
     else
-    
+        pars = [b_S;b_R;alpha_b;d_maxS;alpha_d;beta_d;EC_50d;H_d;...       % Array with exact model parameters;
+                    xi_SR;k_xi;N_T0;lambda_T0];
         % Generate random trajectories for the MNHo or MNHe cases
-        % with the user-defined options:
-        pars = [b_S;b_R;alpha_b;d_maxS;alpha_d;beta_d;EC_50d;H_d;xi_SR;... % Array with exact model parameters;
-                k_xi;N_T0;lambda_T0];
-        
-        % Construct AMR levels and simulation times used for calibration:
-        tsim     = t0:ht:tf;                                               % Array with times to simulate model;
-        tsim     = sort(unique([tsim texp])).'; 
-        
-        texp_ind = find(ismember(tsim, texp));                             % Indexes of experimental times within
-                                                                           % simulation times;
-        
-        % Problem sizes:
-        m_t    = numel(tsim);                                                     
-        m_texp = numel(texp);
-        m_e    = numel(Cexp); 
-        
-        % Construct array of AMR levels used for generating data:
-        r_data  = linspace(ra_data, rb_data, m_rdata).';
-        
+        % with the user-defined options:       
         R = repmat(r_data, 1, m_rdata) - repmat(r_data.', m_rdata, 1);                       
         R = R - triu(R) + tril(R).';                                       % Auxiliary matrix for ODEs;
        
         % Call to function simulating average BD model:
         if m_r < 2 || m_rdata < 2                                          % Stop calibration if m_r < 2;
-            fprintf('\n>> The user have selected m_r = %u of subpopulations to calibrate.', m_r)
-            fprintf('\n>> The user have selected m_rdata = %u of subpopulations to generate data.', m_rdata)
+            fprintf('\n>> The user has selected m_r = %u of subpopulations to calibrate.', m_r)
+            fprintf('\n>> The user has selected m_rdata = %u of subpopulations to generate data.', m_rdata)
             fprintf('\n>> However, the model is not defined for m_r < 2.')
             fprintf('\n>> Please, change the number of AMR levels and run again.') 
-            return          
-        elseif m_rdata > 2                                                     
+            return     
+            
+        elseif m_rdata > 2   
+            
+            % Calculate total average counts with the current settings:
             [~, N_Tdata] = Sim_aveBD(r_data, R, tsim, Cexp, pars, ODEoptions);
         else
-            [~, N_Tdata] = Sim_aveBD_2subpop(r_data, R, tsim, Cexp, pars, ODEoptions);
+            if numel(find(r_data - [0;1])) + numel(find(r - [0;1])) > 0
+                fprintf('\n>> The user has selected m_r = %u of subpopulations to calibrate and m_rdata = %u to generate data.', m_r, m_rdata)
+                fprintf('\n>> However, the model is code is not well defined for m_r = 2 and r distinct from [0;1].')
+                fprintf('\n>> Please, change the setup for calibration and run again.')
+                return
+            end
+            
+            ind_noIdentPars                = [3 5 6 10];                   % Indexes of meaningless parameters;
+            ind_IdentPars                  = 1:numel(pars);
+            ind_IdentPars(ind_noIdentPars) = [];
+            
+            % Calculate total average counts with the current settings:   
+            [~, N_Tdata] = Sim_aveBD_SR(r_data, R, tsim, Cexp, pars(ind_IdentPars), ODEoptions);
         end
         
         % Add measuremennt noise to average total counts:
@@ -372,7 +431,7 @@ if m_r > 2
     sim_name                       = 'Sim_aveBD';                          % Name of the function simulating the model;
     pars_nom                       = pars;                                 % Nominal parameter values to scale the problem;    
 else
-    sim_name                       = 'Sim_aveBD_2subpop';                  % Name of the function simulating the model;
+    sim_name                       = 'Sim_aveBD_SR';                       % Name of the function simulating the model;
     ind_noIdentPars                = [3 5 6 10];                           % Indexes of meaningless parameters;
     ind_IdentPars                  = 1:numel(pars);
     ind_IdentPars(ind_noIdentPars) = [];
@@ -394,45 +453,37 @@ end
 problem.x_L = problem.x_L./pars_nom;
 problem.x_U = problem.x_U./pars_nom;
 
-% Set initial guess for model parameters:
-if exist('pars_opt', 'var')
-    problem.x_0 = pars_opt./pars_nom;        
+
+if exist(load_name, 'file')
+    problem.x_0 = pars_opt./pars_nom;
 else
+    
     rng('shuffle')
+    
     problem.x_0 = problem.x_L + (problem.x_U - problem.x_L).*rand(size(problem.x_L));
-end
+    
+    
+    % Print initial guess:
+    x_0_auxprint = problem.x_0.*pars_nom;
+    
+    fprintf('\n>> The initial guess for the model parameters is:')
+    if m_r > 2
+        par_names = {'b_S','b_R','alpha_b','d_Smax','alpha_d','beta_d',...
+                     'EC_50d','H_d','xi_SR', 'k_xi','N_T0','lambda_T0'};
+    else
+        par_names = {'b_S','b_R','d_Smax','EC_50d','H_d','xi_SR','N_T0','lambda_T0'};
+    end 
+    
+    
+    for ip = 1:size(par_names, 2)
+        aux_par_names = cell2mat(par_names(:,ip));
+        fprintf('\n>> %s ---> %.4e', aux_par_names, x_0_auxprint(ip))
+    end   
+    if strcmp(noise, 'MNHe')
+        fprintf('\n>> var_b ---> %.4e\n', x_0_auxprint(end))
+    end 
 
-% Print initial guess:
-x_0_auxprint = problem.x_0.*pars_nom;
-fprintf('\n>> The initial guess for model parameters is:')
-if m_r > 2
-    fprintf('\n b_S       ---> %d', x_0_auxprint(1))
-    fprintf('\n b_R       ---> %d', x_0_auxprint(2))
-    fprintf('\n alpha_b   ---> %d', x_0_auxprint(3))
-    fprintf('\n d_maxS    ---> %d', x_0_auxprint(4))
-    fprintf('\n alpha_d   ---> %d', x_0_auxprint(5))
-    fprintf('\n beta_d    ---> %d', x_0_auxprint(6))
-    fprintf('\n EC_50d    ---> %d', x_0_auxprint(7))
-    fprintf('\n H_d       ---> %d', x_0_auxprint(8))
-    fprintf('\n xi_SR     ---> %d', x_0_auxprint(9))
-    fprintf('\n k_xi      ---> %d', x_0_auxprint(10))
-    fprintf('\n N_T0      ---> %d', x_0_auxprint(11))
-    fprintf('\n lambda_T0 ---> %d', x_0_auxprint(12))
-else
-    fprintf('\n b_S       ---> %d', x_0_auxprint(1))
-    fprintf('\n b_R       ---> %d', x_0_auxprint(2))
-    fprintf('\n d_maxS    ---> %d', x_0_auxprint(3))
-    fprintf('\n EC_50d    ---> %d', x_0_auxprint(4))
-    fprintf('\n H_d       ---> %d', x_0_auxprint(5))
-    fprintf('\n xi_SR     ---> %d', x_0_auxprint(6))
-    fprintf('\n N_T0      ---> %d', x_0_auxprint(7))
-    fprintf('\n lambda_T0 ---> %d', x_0_auxprint(8))
 end
-
-if strcmp(noise, 'MNHe')
-    fprintf('\n var_b     ---> %d', x_0_auxprint(end))
-end
-
 
 %%
 % ----------------------------------------------------------------------- %
@@ -460,7 +511,7 @@ delete ess_report.mat
 % ----------------------------------------------------------------------- %
 % Save results:
 if strcmp(noise, 'PN')
-    save(res_name, 'r', 'tsim', 'texp', 'Cexp', 'pars', 'pars_opt', 'f_best',...
+    save(res_name, 'r', 'r_data', 'tsim', 'texp', 'Cexp', 'pars', 'pars_opt', 'f_best',...
          'itraj', 'N_Tdata', 'N_Tave_data','seed', 'Weights', 'Var_data', 'ODEoptions')
 else
     % Obtain estimates of additional parameters in MNHo and MNHe cases:  
@@ -477,14 +528,14 @@ else
         auxN_Tmod  = log10(auxN_Tmod);                                     
         var        = sum((auxN_Tdata - auxN_Tmod).^2)/(m_texp*m_e - 1);
         sd_opt     = sqrt(var);
-        save(res_name, 'r', 'tsim', 'texp', 'Cexp', 'pars', 'pars_opt', 'f_best',...
+        save(res_name, 'r', 'r_data', 'tsim', 'texp', 'Cexp', 'pars', 'pars_opt', 'f_best',...
             'N_Tdata','N_Tave_data','seed', 'Weights', 'Var_data', 'sd', 'sd_opt', 'ODEoptions')
     else
         
         % Calculate estimate of var_a:
         var_b_opt = pars_opt(end);
-        var_a_opt = sum((auxN_Tdata - auxN_Tmod).^2./(auxN_Tmod.^var_b))/(m_texp*m_e);
-        save(res_name, 'r', 'tsim', 'texp', 'Cexp', 'pars', 'pars_opt', 'f_best',...
+        var_a_opt = sum((auxN_Tdata - auxN_Tmod).^2./(auxN_Tmod.^var_b_opt))/(m_texp*m_e);
+        save(res_name, 'r', 'r_data', 'tsim', 'texp', 'Cexp', 'pars', 'pars_opt', 'f_best',...
          'N_Tdata','N_Tave_data','seed', 'Weights', 'Var_data', 'var_a',...
          'var_a_opt', 'var_b', 'var_b_opt', 'ODEoptions')
     end
@@ -502,7 +553,8 @@ if plot_res == 1
         logNT_ave_data = log10(N_Tave_data);
     end
 
-    PlotPE(r, R, tsim, texp, Cexp, pars_opt, logNT_ave_data, col, mks, ODEoptions, sim_name)
+    Plot_ResPE(r, R, tsim, texp, Cexp, pars_opt, logNT_ave_data, col,...
+               mks, ODEoptions, sim_name)
 end
 
 % Remove paths:

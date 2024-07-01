@@ -1,6 +1,12 @@
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % MainCI: Main file to calculate FIM-based confidence intervals 
-%         for the parameters of the BD heteroresistance model
+%         for calibration of the BD heteroresistance model
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% OBSERVATION:
+% To calculate the FIM-based confidence intervals for parameter estimates
+% obtained through Maximum Likelihood Estimation, previous 
+% calibration results (generated with MainPE.m) must be available 
+% at folder: Results/ResPE 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 clear variables
 
@@ -16,237 +22,210 @@ addpath('Functions')
 confLev    = 0.9;
 
 % Noise assumption (= 'MNHo'; 'MNHe'; 'PN');
-noise      = 'PN';   
-
-% Choose implementation used to generate BD trajectories if noise = 'PN'
-% (direct method = SSA or rejection based = RSSA):
-method     = 'SSA'; % = 'SSA'; = 'RSSA';
-
-% Set ODE solver precision:
-ODEoptions = odeset('RelTol', 1.0e-6, 'AbsTol', 1.0e-6);
+noise      = 'MNHe';   
     
-% Name of the file keeping previous calibration results
-% (if load_name = 'None', CI are analysed with the user settings):
-load_name  = 'ResPE_50subpop_MNHo_3traj_run1.mat';
+% Name of the file keeping the calibration results:
+load_name  = 'ResPE_50subpop_MNHe_3traj_run1.mat';
 
-% ----------------------------------------------------------------------- %
-% Define new settings to calculate CI 
-% (ignore lines within % --- % if load_name is a valid file identifier)
-
-% Number of replicates used for calibration:
-m_traj = 3;
-
-% Assumptions on measurement noise:
-seed = 1;                                                                  % Set seed for data reproducibility;
-
-if strcmp(noise, 'MNHo')
-    sd = 0.5;                                                              % Standard deviation of the measurement error
-                                                                           % in the MNHo case (log scale);
-elseif strcmp(noise, 'MNHe')
-    var_a = 1;                                                             % Parameters of variance in MNHe case;
-    var_b = 2;
-end
-
-% Choose replicates to calibrate if noise = 'PN':
-itraj     = [10 50 100];
-
-% Discretisation of the AMR level:
-ra  = 0;                                                                   % Minimum AMR level;
-rb  = 1;                                                                   % Maximum AMR level;
-m_r = 50;                                                                  % Number of subpopulations;
-        
-% Time discretisation:
-t0 = 0;                                                                    % Initial simulation time;
-tf = 48;                                                                   % Final simulation time;
-ht = 1e-3;                                                                 % Time step for model simulation (solve ODEs);
-
-% Sampling times used for calibration:
-texp = [2 4 6 8 10 12 16 20 24 36 48];
-
-% Values of parameters to calculate FIM:
-b_S       = 0.63;                                                          % Birth rate of S in absence of antimicrobial;                         
-b_R       = 0.36;                                                          % Birth rate of R;
-
-alpha_b   = 2;                                                             % Shape coefficient for AMR fitness cost
-
-d_maxS    = 3.78;                                                          % Maximal kill rate of S cells by antimicrobial;
-alpha_d   = 3;                                                             % Shape coefficient of bactericide inhibition;  
-beta_d    = 0.4;                                                           % Shape coefficient of bactericide inhibition;
-
-EC_50d    = 1;                                                             % Half maximal inhibitory concentration;
-H_d       = 1;                                                             % Hill coefficient;
-
-xi_SR     = 1e-6;                                                          % Modification rate of AMR level between S and R cells;
-k_xi      = log(1e2);                                                      % Shape parsameter of modification rate;
-
-N_T0      = 1e6;                                                           % Initial population size;
-lambda_T0 = 50;                                                            % Shape coefficient of initial condition;                                              
-
-% Array of antimicrobial concentrations:
-MIC_S = EC_50d*(b_S/(d_maxS - b_S))^(1/H_d);
-Cexp  = MIC_S*[0.0 1.0 2.0 4.0 8.0].';
+% Set ODEs solver (ode15s) precision to calculate state sensitivities:
+ODEoptions = odeset('RelTol', 1.0e-6, 'AbsTol', 1.0e-6);
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % End of user-defined settings
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 %%
-load_name  = sprintf('Results/ResPE/%s', load_name);
-             
-if exist(load_name, 'file')
+fprintf('\n>> The user has selected to load calibration results from: %s', load_name)
+fprintf('\n>> The user has selected the noise assumption: %s', noise)
+
+if numel(strfind(load_name, noise)) < 1
+    fprintf('\n>> The selected noise assumption does not coincide with that used for calibration.')
+    fprintf('\n>> Please, change the name of the file with calibration results or the noise assumption and run again.\n')
+    return
+end
+full_load_name  = sprintf('Results/ResPE/%s', load_name);
+
+% Initialice auxiliary array with parameters of variance in MNHe case:
+pars_var  = [];
+
+if exist(full_load_name, 'file')
     
     % Load optimal parameters and data from previous calibration results:
     if strcmp(noise, 'MNHo')
-        load(load_name, 'r', 'tsim', 'Cexp', 'texp', 'pars_opt', 'sd')
+        load(full_load_name, 'r', 'tsim', 'Cexp', 'texp', 'pars_opt',...
+            'sd_opt', 'Weights', 'Var_data')
+        
     elseif strcmp(noise, 'MNHe')
-        load(load_name, 'r', 'tsim', 'Cexp', 'texp', 'pars_opt', 'var_a_opt', 'var_b_opt')
-        pars_opt = pars_opt(1:end-1);
+        load(full_load_name, 'r', 'tsim', 'Cexp', 'texp', 'pars_opt',...
+            'Weights', 'Var_data', 'var_a_opt', 'var_b_opt')
+        
+        % Remove optimal var_b of the model parameters:
+        pars_opt = pars_opt(1:end - 1);
+        
+        % Optimal parameters for variance:
+        pars_var = [var_a_opt;var_b_opt];
+        
     else
-        load(load_name, 'r', 'tsim', 'Cexp', 'texp', 'pars_opt', 'Weights', 'Var_data')
+        load(full_load_name, 'r', 'tsim', 'Cexp', 'texp', 'pars_opt',...
+            'Weights', 'Var_data')
     end
-    
-    FIM_pars  = pars_opt;
 
 else
     
-    % Parameter array to calculate FIM:
-    FIM_pars  = [b_S;b_R;alpha_b;d_maxS;alpha_d;beta_d;EC_50d;H_d;...      
-                 xi_SR;k_xi;N_T0;lambda_T0];
-             
-    % Array of AMR levels:
-    r    = linspace(ra, rb, m_r).';
+    fprintf('\n>> The file: %s cannot be found in folder: Results/resPE', load_name)
+    fprintf('\n>> This script, however, needs previous calibration results to work.')
+    fprintf('\n>> Please, check the name of the file defined in: load_name, and run again.')
     
-    % Simulation times:
-    tsim = (t0:ht:tf).';
-    tsim = sort(unique([tsim texp])).';   
+    return
 end
+
 
 % Indexes of sampling times within simulation times:
 texp_ind = find(ismember(tsim, texp));
 
 % Problem sizes:
-
+m_r    = numel(r);
 m_t    = numel(tsim);    
-ntexp = numel(texp);
-np    = numel(FIM_pars);
-Nexp  = numel(Cexp);
-
-Weights = ones(ntexp, Nexp);
-NaN_ind = find(Weights == 0);
+m_texp = numel(texp);
+m_p    = numel(pars_opt);
+m_e    = numel(Cexp);
 
 % ----------------------------------------------------------------------- %
 % Calculate sensitivity matrix:
 
-% Initial condition:
-f0  = exp(-lambda_T0*r);
-f0  = f0/sum(f0);
-N_0 = N_T0*f0;
+fprintf('\n>> Calculating sensitivities...')
 
-% Call function to calculate sensitivities:
-[N_T, sensN_T] = SensMultiExp(tsim, r, Cexp, FIM_pars, N_0, ODEoptions);
+% Initial condition:
+f0  = exp(- pars_opt(end)*r);
+f0  = f0/sum(f0);
+N_0 = pars_opt(end - 1)*f0;
+
+% Call function to calculate state sensitivities of the average BD model
+% with the calibrated parameters:
+[N_T, sensN_T] = SensME(tsim, r, Cexp, pars_opt, N_0, ODEoptions);
+
+% Obtain average and sensitivities at the sampling times:
+N_T     = N_T(texp_ind, 1:m_e);
+sensN_T = sensN_T(texp_ind, 1:m_p, 1:m_e);
 
 % ----------------------------------------------------------------------- %
 % Build covariance matrix:
 if strcmp(noise, 'MNHo')
-    CovMatrix = sd^2*ones(ntexp*Nexp,ntexp*Nexp);
-    pars_var  = [];
+    
+    CovMatrix = sd_opt^2*ones(m_texp*m_e, m_texp*m_e);
+    
 elseif strcmp(noise, 'MNHe')
-    auxN_T    = reshape(N_T(texp_ind, 1:Nexp).', [], 1); 
-    CovMatrix = diag(var_a*auxN_T.^var_b);
-    pars_var  = [var_a;var_b];
+    
+    auxN_T    = reshape(N_T.', [], 1); 
+    CovMatrix = diag(var_a_opt*auxN_T.^var_b_opt);
+    
 else
-    % Calculate sample variances:
-    Ntraj   = numel(itraj);
-    N_Tdata = zeros(ntexp, Nexp, Ntraj);
-    aux_ii  = 1;
     
-    for ii = itraj
-        traj_name = sprintf('../SSA/Results/res%s_%03u.mat', method, ii);
-        load(traj_name, 'N_T')
-        N_Tdata(1:ntexp, 1:Nexp, aux_ii) = N_T(texp_ind, 1:Nexp);
-        aux_ii = aux_ii + 1;
-    end
+    % Remove NaN data:
+    NaN_ind           = find(Weights == 0);
+    Var_data(NaN_ind) = NaN;
     
-    N_Tave_data = sum(N_Tdata, 3)/Ntraj;
-    NaN_ind     = find(isnan(N_Tave_data));
+    Var_data          = reshape(Var_data.', [], 1);
     
-    Var_data    = sum((N_Tdata - repmat(N_Tave_data, 1, 1, Ntraj)).^2, 3)/(Ntraj - 1);
+    Var_data(isnan(Var_data)) = [];
     
-    N_Tave_data(NaN_ind) = [];
-    Var_data(NaN_ind)    = [];
-    
-    Var_data  = reshape(Var_data, [], 1);
+    % Build covariance matrix with sample variances:
     CovMatrix = diag(Var_data);
-    pars_var  = [];
+    
 end
 
 % ----------------------------------------------------------------------- %
 % Build sensitivity matrix:
+fprintf('\n>> Building sensitivity matrix...')
+
 SensMatrix = [];
 
 if strcmp(noise, 'MNHo')
-    % Log10 of total average count:
+    
+    % Log10 of total average counts:
     y_T = log10(N_T);
 
     % Calculate sensitivities of y_T to parameters:
-    sensy_T = zeros(m_t, np, Nexp);
+    sensy_T = zeros(m_texp, m_p, m_e);
 
-    for ip = 1:np
-        aux = reshape(sensN_T(1:m_t, ip, 1:Nexp), m_t, Nexp);
-        aux = (aux./N_T)/log(10);
-        sensy_T(1:m_t, ip, 1:Nexp) = aux;
+    for ip = 1:m_p
+
+        aux = reshape(sensN_T(1:m_texp, ip, 1:m_e), m_texp, m_e);
         
-        % Obtain sensitivities at the sampling times:
-        aux = reshape(sensy_T(texp_ind, ip, 1:Nexp), ntexp, Nexp);
-    
-        % Scaling by the nominal parameter (transformation par* = par/nom_par):
-        aux = pars_nom(ip)*aux;
-    
+        % Obtain sensitivities at the sampling times (log scale):
+        aux = (aux./N_T)/log(10);
+        
+        % Almacenate sensitivity of y_T = log(N_T):
+        sensy_T(1:m_texp, ip, 1:m_e) = aux;
+        
+        % Log-scaling of parameters:
+        aux = pars_opt(ip)*aux;
+        
         SensMatrix = [SensMatrix reshape(aux.', [], 1)];
     end
 else
-    for ip = 1:np
+    for ip = 1:m_p
     
         % Obtain sensitivities at the sampling times:
-        aux = reshape(sensN_T(texp_ind, ip, 1:Nexp), ntexp, Nexp);
-    
-        aux(NaN_ind) = [];
+        aux = reshape(sensN_T(1:m_texp, ip, 1:m_e), m_texp, m_e);
 
-        % Scaling by the nominal parameter (transformation par* = par/nom_par):
-        aux = pars_nom(ip)*aux;
-    
-        SensMatrix = [SensMatrix reshape(aux.', [], 1)];
+        % Log scaling of parameters:
+        aux = pars_opt(ip)*aux;
+        
+        if strcmp(noise, 'PN')
+            aux(NaN_ind) = NaN;
+        end
+        
+        aux             = reshape(aux.', [], 1);
+        
+        aux(isnan(aux)) = [];
+        
+        SensMatrix = [SensMatrix aux];
     end
 end
 
 % Normalised sensitivity matrix using the sampling times:      
 % Important! this is the normalised sensitivity with respect parameters
-% before reescaling using nominal values. 
+% before log-scaling of parameters! 
 normSensMatrix = [];
 
 if strcmp(noise, 'MNHo')
-     for ip = 1:np
-        aux = reshape(sensy_T(texp_ind, ip, 1:Nexp), ntexp, Nexp);
-        aux = FIM_pars(ip)*aux./N_T(texp_ind, 1:Nexp);
+     for ip = 1:m_p
+        aux = reshape(sensy_T(1:m_texp, ip, 1:m_e), m_texp, m_e);
+        aux = pars_opt(ip)*aux./y_T;
         normSensMatrix = [normSensMatrix reshape(aux.',[],1)];
     end   
 else
-    for ip = 1:np
-        aux = reshape(sensN_T(texp_ind, ip, 1:Nexp), ntexp, Nexp);
-        aux = FIM_pars(ip)*aux./N_T(texp_ind, 1:Nexp);
-        normSensMatrix = [normSensMatrix reshape(aux.',[],1)];
+    for ip = 1:m_p
+        aux = reshape(sensN_T(1:m_texp, ip, 1:m_e), m_texp, m_e);
+        aux = pars_opt(ip)*aux./N_T;
+        
+        if strcmp(noise, 'PN')
+            aux(NaN_ind) = NaN;
+        end
+        
+        aux             = reshape(aux.', [], 1);
+        
+        aux(isnan(aux)) = [];
+        normSensMatrix  = [normSensMatrix aux];
     end
 end
 
-
+%%
 % ----------------------------------------------------------------------- %
 % Calculate confidence intervals from FIM:
-[FIM, FIMConfInt] = FIM_ConfInt(FIM_pars, pars_nom, pars_var, SensMatrix, normSensMatrix, CovMatrix, confLev, noise, Nexp, ntexp);  
+
+fprintf('\n>> Calculating the FIM and confidence intervals...')
+
+[FIM, CI] = FIM_CI(pars_opt, pars_var, SensMatrix, normSensMatrix,...
+                   CovMatrix, confLev, noise, m_r, m_texp, m_e); 
 
 % ----------------------------------------------------------------------- %
 % Save results:
-res_name = sprintf('Results/resFIM_%s.mat', noise);
-save(res_name, 'r', 'tsim', 'texp', 'Cexp', 'FIM_pars', 'pars_nom', 'CovMatrix', 'FIM', 'FIMConfInt')
+res_name = sprintf('Results/ResFIM/FIM_%s', load_name);
+save(res_name, 'r', 'tsim', 'texp', 'Cexp', 'pars_opt', 'pars_var', 'CovMatrix',...
+    'SensMatrix', 'normSensMatrix', 'FIM', 'CI')
 
+% Remove folder with functions from path:
 rmpath('Functions')
-rmpath('Results')
+

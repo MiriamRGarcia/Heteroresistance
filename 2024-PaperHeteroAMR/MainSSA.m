@@ -12,7 +12,7 @@ addpath('Functions')
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % User-defined settings:
 
-% Choose implementation (direct method = SSA or rejection based = RSSA):
+% Choose implementation (direct method = SSA or rejection-based = RSSA):
 method = 'SSA'; % = 'SSA'; = 'RSSA';
 
 % Number of trajectories:
@@ -59,18 +59,34 @@ m_r  = 50;                                                                 % Siz
 
 %%
 % ----------------------------------------------------------------------- %
-% Preeliminary calculations:
+% Preeliminary calculations:                                 
 
-% Parameter array:
-pars = [b_S;b_R;alpha_b;d_maxS;alpha_d;beta_d;EC_50d;H_d;...
-        xi_SR;k_xi;N_T0;lambda_T0];
-         
-% Time discretisation:
-tsim = t0:ht:tf;                                 
-
-% AMR level discretisation:
-r    = linspace(ra, rb, m_r).';                                            
-
+if m_r  < 2
+    fprintf('\n>> The user has selected m_r = %u subpopulations', m_r)
+    fprintf('\n>> However, the heteroresistance model is not defined for m_r < 2.')
+    fprintf('\n>> Please, augment the number of subpopulations and run again.')
+    
+    return
+else
+    % AMR level discretisation:
+    r    = linspace(ra, rb, m_r).'; 
+    
+    % Time discretisation:
+    tsim = t0:ht:tf;
+    
+    % Parameter array:
+    pars = [b_S;b_R;alpha_b;d_maxS;alpha_d;beta_d;EC_50d;H_d;...
+            xi_SR;k_xi;N_T0;lambda_T0];
+    
+    if m_r < 3 && 0 < numel(find(r - [0;1])) 
+        fprintf('\n>> The user has selected m_r = %u subpopulations and ra = %.2e, rb = %.2e', m_r, ra, rb)
+        fprintf('\n>> However, the code does not work properly if m_r = 2 and {ra,rb} distinct from {0,1}.')
+        fprintf('\n>> Please, augment the number of subpopulations and run again.')
+    
+        return
+    end
+end
+               
 % Problem sizes:
 m_t  = numel(tsim);
 m_e  = numel(Cexp);
