@@ -69,7 +69,7 @@ pdf_AMR = zeros(m_t, m_r, m_e);
 for itraj = 1:m_traj
 
     % Create file name:
-    file_name = sprintf('../SSA/Results/res%s_%03u', method, itraj);
+    file_name = sprintf('../Results/ResSSA/res%s_%03u', method, itraj);
 
     % Load results file:
     load(file_name, 'N', 'N_T')
@@ -116,6 +116,8 @@ mt_pdfAMR   = numel(tind_pdfAMR);
 
 % ----------------------------------------------------------------------- %
 % Options for area plot:
+ra = r(1);
+rb = r(m_r);
 
 basestep = 0.15;                                                           % Set step between baselines;
 baseline = zeros(m_r, 1) + basestep*(mt_pdfAMR - 1);                       % Set base lines for area plots;
@@ -196,7 +198,7 @@ R  = R - triu(R) + tril(R).';
 if m_r > 2
     [N_mod, N_Tmod] = Sim_aveBD(r, R, tsim, Cexp, pars, ODEoptions);
 else
-    [N_mod, N_Tmod] = Sim_aveBD_2subpop(r, R, tsim, Cexp, pars, ODEoptions);
+    [N_mod, N_Tmod] = Sim_aveBD_SR(r, R, tsim, Cexp, pars, ODEoptions);
 end
 
 % ----------------------------------------------------------------------- %

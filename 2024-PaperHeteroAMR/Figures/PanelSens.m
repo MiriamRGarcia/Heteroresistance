@@ -39,10 +39,6 @@ k_xi      = log(1e2);
 N_T0      = 1e6;
 lambda_T0 = 50;
 
-pars      = [b_S;b_R;alpha_b;d_maxS;alpha_d;beta_d;EC_50d;H_d;xi_SR;k_xi;N_T0;lambda_T0];
-    
-m_p       = numel(pars);
-
 % Time discretisation:
 t0        = 0; 
 tf        = 48;       
@@ -53,8 +49,8 @@ m_t       = numel(tsim);
 % Discretisation of the AMR level:
 ra        = 0;
 rb        = 1;
-nr        = 50;
-r         = linspace(ra, rb, nr).';
+m_r       = 2;
+r         = linspace(ra, rb, m_r).';
 
 % Antimicrobial concentrations (constant for each experiment):
 MIC_S     = EC_50d*(b_S/(d_maxS - b_S))^(1/H_d);
@@ -70,18 +66,37 @@ m_e       = numel(Cexp);
 % Call to function calculating sensitivities:
 
 % Initial population size:
-f0 = exp(-lambda_T0*r);
-f0 = f0/sum(f0);
-N0 = floor(N_T0*f0);
+f0  = exp(-lambda_T0*r);
+f0  = f0/sum(f0);
+N_0 = N_T0*f0;
 
-[NT, sens_NT] = aveBD_SensME(tsim, r, Cexp, pars, N0, ODEoptions);
+if m_r > 2
+    pars      = [b_S;b_R;alpha_b;d_maxS;alpha_d;beta_d;EC_50d;H_d;xi_SR;...
+                 k_xi;N_T0;lambda_T0];
+else
+    pars      = [b_S;b_R;d_maxS;EC_50d;H_d;xi_SR;N_T0;lambda_T0];
+end
+
+m_p = numel(pars);
+
+[NT, sens_NT] = SensME(tsim, r, Cexp, pars, N_0, ODEoptions);
 
 % ----------------------------------------------------------------------- %
 % Plot sensitivities:
 
 % Define parameter names:
-name_pars = {'$b_S$','$b_R$','$\alpha_b$','$d_{maxS}$','$\alpha_d$',...
-             '$\beta_d$','$EC_{50d}$','$H_d$','$\xi_{SR}$','$k_{\xi}$','$N_{T0}$','$\lambda_{T0}$'};
+if m_r > 2
+    rplot     = 4;
+    cplot     = 3;
+    name_pars = {'$b_S$','$b_R$','$\alpha_b$','$d_{maxS}$','$\alpha_d$',...
+                 '$\beta_d$','$EC_{50d}$','$H_d$','$\xi_{SR}$',...
+                 '$k_{\xi}$','$N_{T0}$','$\lambda_{T0}$'};
+else
+    rplot     = 4;
+    cplot     = 2;
+    name_pars = {'$b_S$','$b_R$','$d_{maxS}$','$EC_{50d}$','$H_d$',...
+                 '$\xi_{SR}$','$N_{T0}$','$\lambda_{T0}$'};
+end
 
 
 fig = figure;
@@ -94,7 +109,7 @@ Cticks = linspace(Cexp(1), Cexp(m_e), 4);
 
 for ip = 1:m_p
     
-    subplot(4, 3, ip)
+    subplot(rplot, cplot, ip)
     
     % ------------------------------------------ %
     % Calculate normalised sensitivities:
@@ -111,7 +126,7 @@ for ip = 1:m_p
     
     % ------------------------------------------ %
     % Set scale for parameter N_T0:
-    if ip == 11
+    if ip == m_p - 1
         caxis([0 max(max(sc_sens_aux))]);
     end
     

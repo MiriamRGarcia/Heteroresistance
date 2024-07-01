@@ -19,7 +19,7 @@ m_traj    = 3;
 m_run     = 1;
 
 % Number of AMR levels used for calibration (to load results):
-m_r       = 50;
+m_r       = 2;
 
 % Number of AMR levels used for generating data:
 m_rdata   = 50;
@@ -93,7 +93,7 @@ load(file_name, 'pars', 'seed', 'sd')
 if m_rdata > 2                                                     
     [~, N_Tdata] = Sim_aveBD(r_data, R_data, tsim, Cexp, pars, ODEoptions);
 else
-    [~, N_Tdata] = Sim_aveBD_2subpop(r_data, R_data, tsim, Cexp, pars, ODEoptions);
+    [~, N_Tdata] = Sim_aveBD_SR(r_data, R_data, tsim, Cexp, pars, ODEoptions);
 end
 
 
@@ -116,11 +116,11 @@ load(file_name, 'pars_opt')
 if m_r > 2                                                     
     [~, N_Tmod] = Sim_aveBD(r, R, tsim, Cexp, pars_opt, ODEoptions);
 else
-    [~, N_Tmod] = Sim_aveBD_2subpop(r, R, tsim, Cexp, pars_opt, ODEoptions);
+    [~, N_Tmod] = Sim_aveBD_SR(r, R, tsim, Cexp, pars_opt, ODEoptions);
 end
 
 % Initialise legend:
-lgd = cell(m_e, 1);
+lgd = {'$C=0MIC_S$','$C=1MIC_S$', '$C=2MIC_S$', '$C=4MIC_S$', '$C=8MIC_S$'};
 
 % Figure:
 fig = figure;
@@ -129,6 +129,7 @@ set(gcf,'color','w');
 
 transp    = [0.3 0.5 0.7];
 ind_tplot = 1:1000:m_t;
+
 
 
 % First subplot:
@@ -146,10 +147,7 @@ for iexp = 1:m_e
     
     plot(texp, N_Tave_data(texp_ind, iexp), mks{iexp}, 'Color', cc(iexp,:),'MarkerSize', 10, 'MarkerFaceColor', cc(iexp,:), 'HandleVisibility', 'off')
     
-    lgd{iexp} = sprintf('$C=%.1f$ mg/L', Cexp(iexp));
-
 end
-
 plot(tsim, log10(LDL)*ones(m_t, 1), '--', 'Color', 'k', 'LineWidth', 1.5)
 text(11, log10(LDL) - 0.5, 'LDL', 'Interpreter', 'Latex', 'FontSize', 17)
 
@@ -178,7 +176,7 @@ load(file_name, 'seed', 'var_a', 'var_b')
 if m_rdata > 2                                                     
     [~, N_Tdata] = Sim_aveBD(r_data, R_data, tsim, Cexp, pars, ODEoptions);
 else
-    [~, N_Tdata] = Sim_aveBD_2subpop(r_data, R_data, tsim, Cexp, pars, ODEoptions);
+    [~, N_Tdata] = Sim_aveBD_SR(r_data, R_data, tsim, Cexp, pars, ODEoptions);
 end
 
 % Generate random trajectories:
@@ -199,7 +197,7 @@ load(file_name, 'pars_opt')
 if m_r > 2                                                     
     [~, N_Tmod] = Sim_aveBD(r, R, tsim, Cexp, pars_opt, ODEoptions);
 else
-    [~, N_Tmod] = Sim_aveBD_2subpop(r, R, tsim, Cexp, pars_opt, ODEoptions);
+    [~, N_Tmod] = Sim_aveBD_SR(r, R, tsim, Cexp, pars_opt, ODEoptions);
 end
 
 ind_tplot = 1:1000:m_t;
@@ -263,7 +261,7 @@ N_Tave_data(N_Tave_data < LDL) = LDL;
 if m_r > 2                                                     
     [~, N_Tmod] = Sim_aveBD(r, R, tsim, Cexp, pars_opt, ODEoptions);
 else
-    [~, N_Tmod] = Sim_aveBD_2subpop(r, R, tsim, Cexp, pars_opt, ODEoptions);
+    [~, N_Tmod] = Sim_aveBD_SR(r, R, tsim, Cexp, pars_opt, ODEoptions);
 end
 
 % ----------------------------------------------------------------------- %
