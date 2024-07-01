@@ -40,9 +40,9 @@ N_T0      = 1e6;                                                           % Ini
 lambda_T0 = 50;                                                            % Decay velocity of initial heteroresistance distribution with AMR level;
 
 
-% Array of antimicrobial concentration (assumed constant in each experiment):
+% Array of antimicrobial concentrations (assumed constant in each experiment):
 MIC_S = EC_50d*(b_S/(d_maxS - b_S))^(1/H_d);                               % Minimum inhibitory concentration of S cells,
-Cexp  = MIC_S*[0 1 2 4 8 32].';                                            % Array of antimicrobial concentration,
+Cexp  = MIC_S*[0 1 2 4 8 32].';                                            % Array of antimicrobial concentrations,
 
 % Time discretisation:
 t0   = 0;                                                                  % Initial time [h];
@@ -91,7 +91,7 @@ end
 m_t  = numel(tsim);
 m_e  = numel(Cexp);
 
-% Name of the function implementing the method:
+% Name of the function implementing the method (SSA or RSSA):
 fun_name  = sprintf('multiBD_%s', method);
 
 % Calculate matrix of state transitions:
@@ -111,14 +111,13 @@ for ii = 1:m_r
 end
 
 % Calculate BD rates in each experiment:
-
 RR  = repmat(r, 1, m_r) - repmat(r.', m_r, 1);                           
 RR  = RR - triu(RR) + tril(RR).';
 
 if m_r > 2
-    b     = b_S*b_R./(b_R + r.^alpha_b*(b_S - b_R));                           % Array of birth rates;
-    d_max = d_maxS*beta_d^alpha_d*(1 - r.^alpha_d)./(beta_d^alpha_d + r.^alpha_d);  %Array with maximal death rates;
-    d     = Cexp.^H_d./(Cexp.^H_d + EC_50d^H_d)*d_max.';                       % Matrix m_e x m_r with deaths rates in each experiment;
+    b     = b_S*b_R./(b_R + r.^alpha_b*(b_S - b_R));                                % Array of birth rates;
+    d_max = d_maxS*beta_d^alpha_d*(1 - r.^alpha_d)./(beta_d^alpha_d + r.^alpha_d);  % Array with maximal death rates;
+    d     = Cexp.^H_d./(Cexp.^H_d + EC_50d^H_d)*d_max.';                            % Matrix m_e x m_r with death rates in each experiment;
     
     % Calculate modification rates in AMR level:
     Xi  = xi_SR*exp(k_xi*(1 - RR));                                                                        
@@ -161,15 +160,20 @@ for itraj = 1:m_traj
         % Set seed:
         rng(seed(iexp))
         
-        % Call to tRSSA:
+        % Call to SSA/RSSA:
         [N_aux, N_T_aux] = feval(fun_name, tsim, b, d(iexp, 1:m_r).',...
                                  Xi, trans, N_0, N_TL);
-    
+
+        % Cell counts:
         N(1:m_t, 1:m_r, iexp) = N_aux;
+
+        % Total cell counts:
         N_T(1:m_t, iexp)      = N_T_aux;
     end
-    
+
+    % Save results for the trajectory:
     save(res_name, 'r', 'tsim', 'pars', 'Cexp', 'seed', 'N_TL', 'N', 'N_T')
 end
 
+% Remove path:
 rmpath('Functions')
