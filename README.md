@@ -20,4 +20,4 @@ The repository consist of the following main files:
 
 Also, the folder **Figures** contains the necessary codes to plot all the figures shown in the main paper, including simulation of the BD heteroresistance model and MLE results.
 
-**IMPORTANT NOTE ON CODE:** The functions contained in the repository do not consider the case with only two subpopulations distinct from the entirely sensitive (S) and resistant (R) since this would require a change in the general model structure. However, the purpose of the repository is to illustrate the techniques used in the main text, not to provide a toolbox for generic use, so the codes have not been complicated to include this functionality.
+**IMPORTANT NOTE ON CODE:** The functions contained in the repository do not consider the case with only two subpopulations distinct from the entirely sensitive (S) and resistant (R) since this would require a change in the general model structure. However, the purpose of the repository is to illustrate the techniques used in the main text, not to provide a toolbox for generic use, so the codes have not been further ampliated to include this functionality.
