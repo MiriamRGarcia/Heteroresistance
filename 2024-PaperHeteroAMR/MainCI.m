@@ -110,6 +110,9 @@ sensN_T = sensN_T(texp_ind, 1:m_p, 1:m_e);
 
 % ----------------------------------------------------------------------- %
 % Build covariance matrix:
+
+m_d = m_texp*m_e;                                                          % Size of the dataset;
+
 if strcmp(noise, 'MNHo')
     
     CovMatrix = sd_opt^2*ones(m_texp*m_e, m_texp*m_e);
@@ -131,6 +134,9 @@ else
     
     % Build covariance matrix with sample variances:
     CovMatrix = diag(Var_data);
+    
+    % Actualice size of dataset:
+    m_d = numel(Var_data);
     
 end
 
@@ -218,7 +224,7 @@ end
 fprintf('\n>> Calculating the FIM and confidence intervals...')
 
 [FIM, CI] = FIM_CI(pars_opt, pars_var, SensMatrix, normSensMatrix,...
-                   CovMatrix, confLev, noise, m_r, m_texp, m_e); 
+                   CovMatrix, confLev, noise, m_d, m_r); 
 
 % ----------------------------------------------------------------------- %
 % Save results:
