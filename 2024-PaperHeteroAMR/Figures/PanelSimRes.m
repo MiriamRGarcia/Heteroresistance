@@ -64,7 +64,7 @@ cc = [cc1;cc2;cc3;cc4;cc5;cc6;cc7;cc8;cc9;cc10];
 % ----------------------------------------------------------------------- %
 % Load data of Gillespie trajectories:
 
-file_name = '../Results/resSSA/resSSA_001.mat';
+file_name = '../Results/ResSSA/resSSA_001.mat';
 load(file_name, 'r', 'tsim', 'Cexp', 'pars')
 
 % Problem sizes:
@@ -79,7 +79,7 @@ N_Tdata = zeros(m_t, m_e, m_traj);
 for itraj = 1:m_traj
 
     % Create file name:
-    file_name = sprintf('../Results/resSSA/res%s_%03u.mat', method, itraj);
+    file_name = sprintf('../Results/ResSSA/res%s_%03u.mat', method, itraj);
 
     % Load results file:
     load(file_name, 'N', 'N_T')
