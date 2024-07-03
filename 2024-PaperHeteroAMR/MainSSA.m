@@ -81,7 +81,7 @@ else
     if m_r < 3 && 0 < numel(find(r - [0;1])) 
         fprintf('\n>> The user has selected m_r = %u subpopulations and ra = %.2e, rb = %.2e', m_r, ra, rb)
         fprintf('\n>> However, the code does not work properly if m_r = 2 and {ra,rb} distinct from {0,1}.')
-        fprintf('\n>> Please, augment the number of subpopulations and run again.')
+        fprintf('\n>> Please, augment the number of subpopulations or choose {ra,rb}={0,1} and run again.')
     
         return
     end
@@ -150,7 +150,7 @@ seed = zeros(m_e, 1);
 for itraj = 1:m_traj
     
     % Name of the file to keep the results:
-    res_name = sprintf('Results/resSSA/res%s_%03u', method, itraj);
+    res_name = sprintf('Results/ResSSA/res%s_%03u', method, itraj);
     
     for iexp = 1:m_e
 
