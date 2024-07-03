@@ -62,7 +62,7 @@ mks{5} = '>';
 
 %%
 % Load common experimental setup:
-file_name = sprintf('../Results/resPE/resPE_%usubpop_MNHo_%utraj_run%u.mat', m_r, m_traj, m_run);
+file_name = sprintf('../Results/ResPE/resPE_%usubpop_MNHo_%utraj_run%u.mat', m_r, m_traj, m_run);
 
 load(file_name, 'r', 'tsim', 'texp', 'Cexp', 'ODEoptions')
 
@@ -234,7 +234,7 @@ box off
 %%
 % ----------------------------------------------------------------------- %
 % Third subplot (PN case):
-file_name = sprintf('../Results/resPE/resPE_%usubpop_PN_%utraj_run%u.mat', m_r, m_traj, m_run);
+file_name = sprintf('../Results/ResPE/resPE_%usubpop_PN_%utraj_run%u.mat', m_r, m_traj, m_run);
 
 load(file_name, 'pars_opt', 'itraj')
 
