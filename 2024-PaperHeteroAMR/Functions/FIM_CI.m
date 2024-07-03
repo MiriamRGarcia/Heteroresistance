@@ -2,7 +2,7 @@
 % FIM_CI: Calculate FIM confidence intervals
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 function [FIM, CI] = FIM_CI(pars_opt, pars_var, SensMatrix, normSensMatrix,...
-                            CovMatrix, confLev, noise, m_r, m_texp, m_e)
+                            CovMatrix, confLev, noise, m_d, m_r)
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % INPUT:
 % pars_opt       = Values of the model parameters obtained in calibration;
@@ -41,9 +41,6 @@ if strcmp(noise, 'MNHe')
     var_a_opt = pars_var(1);
     var_b_opt = pars_var(2);
     
-    % Size of the dataset:
-    m_d = size(CovMatrix, 1);
-
     % ------------------------------------------------------------------- %
     % Calculate the term of FIM in the sensitivity matrix:
 
@@ -120,7 +117,7 @@ end
 alph  = 1 - confLev;
 pLo   = alph/2;
 pUp   = 1 - alph/2;
-ndf   = m_texp*m_e - m_p_aux;
+ndf   = m_d - m_p_aux;
 tStud = tinv([pLo pUp], ndf);
 
 % ----------------------------------------------------------%
