@@ -1,12 +1,24 @@
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-% FIM_CI: Calculate FIM confidence intervals from sensitivities
+% FIM_CI: Calculate FIM confidence intervals
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 function [FIM, CI] = FIM_CI(pars_opt, pars_var, SensMatrix, normSensMatrix,...
                             CovMatrix, confLev, noise, m_r, m_texp, m_e)
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % INPUT:
+% pars_opt       = Values of the model parameters obtained in calibration;
+% pars_var       = Values of the variance parameters obtained in calibration
+%                 (MNHe case);
+% SensMatrix     = Sensitivity matrix;
+% normSensMatrix = Normalised sensitivity matrix:
+% covMatrix      = Covariance matrix of the model parameters;
+% confLev        = Confidence level for CI calculation;
+% noise          = Noise assumption ( = 'MNHo', 'MNHe', 'PN');
+% m_r            = Number subpopulations in the heteroresistance model;
+% m_texp         = Number of sampling times;
+% m_e            = Number of experiments;
+%
 % OUTPUT:
-% FIM = Fisher Information Matrix (with log-scaling);
+% FIM = Fisher Information Matrix (calculated with log-scaling of parameters);
 % CI  = FIM-based confidence intervals (size: m_p x 2);
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
