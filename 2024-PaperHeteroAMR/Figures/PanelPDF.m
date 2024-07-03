@@ -51,7 +51,7 @@ ODEoptions = odeset('RelTol', 1.0e-6, 'AbsTol', 1.0e-6);
 % Load data of Gillespie trajectories:
 
 % Results path:
-file_name = sprintf('../Results/resSSA/res%s_001.mat', method);
+file_name = sprintf('../Results/ResSSA/res%s_001.mat', method);
 load(file_name, 'r', 'tsim', 'Cexp', 'pars')
 
 % Problem sizes:
