@@ -13,12 +13,11 @@ function [FIM, CI] = FIM_CI(pars_opt, pars_var, SensMatrix, normSensMatrix,...
 % covMatrix      = Covariance matrix of the model parameters;
 % confLev        = Confidence level for CI calculation;
 % noise          = Noise assumption ( = 'MNHo', 'MNHe', 'PN');
+% m_d            = Size of the dataset;
 % m_r            = Number subpopulations in the heteroresistance model;
-% m_texp         = Number of sampling times;
-% m_e            = Number of experiments;
 %
 % OUTPUT:
-% FIM = Fisher Information Matrix (calculated with log-scaling of parameters);
+% FIM = Fisher Information Matrix (for log-scaling parameters);
 % CI  = FIM-based confidence intervals (size: m_p x 2);
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
