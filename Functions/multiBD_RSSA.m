@@ -77,6 +77,8 @@ while t < tf
         N_T(t_intcount)      = N_T0;                                       % Actualice total cell counts;
         
         if m_t - 1 < t_intcount;return;end
+
+        continue
     end
     
     % Acceptance step:  
