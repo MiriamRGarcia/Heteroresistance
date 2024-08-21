@@ -38,7 +38,7 @@ N_T         = sum(N, 2);                                                   % Ini
 
 % Propensities:
 Xi     = reshape(Xi.', [], 1);
-Xi_aux = Xi.*reshape(repmat(N_0.', m_r, 1), [], 1);
+Xi_aux = Xi.*reshape(repmat(N_0, 1, m_r).', [], 1);
 Xi_aux(Xi_aux == 0) = [];
 
 a  = [b.*N_0;
@@ -96,7 +96,7 @@ while t < tf
     end
     
     % Actualice propensities:
-    Xi_aux = Xi.*reshape(repmat(N_0.', m_r, 1), [], 1);
+    Xi_aux = Xi.*reshape(repmat(N_0, 1, m_r).', [], 1);
     Xi_aux(Xi_aux == 0) = [];
 
     a  = [b.*N_0;
