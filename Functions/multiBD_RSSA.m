@@ -45,14 +45,14 @@ N_up  = 1.1*N_0;
 % Bounds on propensities:
 Xi    = reshape(Xi.', [], 1);
 
-Xi_aux_low = Xi.*reshape(repmat(N_low.', m_r, 1), [], 1);
+Xi_aux_low = Xi.*reshape(repmat(N_low, 1, m_r).', [], 1);
 Xi_aux_low(Xi_aux_low == 0) = [];
 
 a_low = [b.*N_low;
          d.*N_low;
          Xi_aux_low];
      
-Xi_aux_up = Xi.*reshape(repmat(N_up.', m_r, 1), [], 1);
+Xi_aux_up = Xi.*reshape(repmat(N_up, 1, m_r).', [], 1);
 Xi_aux_up(Xi_aux_up == 0) = [];
 
 a_up  = [b.*N_up;
@@ -89,7 +89,7 @@ while t < tf
     
     if un2*a_up(min_ind) > a_low(min_ind)                                  % First acceptance condition;
         
-        Xi_aux = Xi.*reshape(repmat(N_0.', m_r, 1), [], 1);
+        Xi_aux = Xi.*reshape(repmat(N_0, 1, m_r).', [], 1);
         Xi_aux(Xi_aux == 0) = [];
         
         a = [b.*N_0;
@@ -121,10 +121,10 @@ while t < tf
             N_low = 0.9*N_0;
             N_up  = 1.1*N_0;
             
-            Xi_aux_low = Xi.*reshape(repmat(N_low.', m_r, 1), [], 1);
+            Xi_aux_low = Xi.*reshape(repmat(N_low, 1, m_r).', [], 1);
             Xi_aux_low(Xi_aux_low == 0) = [];
             
-            Xi_aux_up = Xi.*reshape(repmat(N_up.', m_r, 1), [], 1);
+            Xi_aux_up = Xi.*reshape(repmat(N_up, 1, m_r).', [], 1);
             Xi_aux_up(Xi_aux_up == 0) = [];
             
             a_low = [b.*N_low;
